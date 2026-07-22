@@ -177,7 +177,9 @@ function MateriaChip({
         {name(code)}
       </div>
       {subtitle && (
-        <div className="text-[9px] font-medium text-brand-600 dark:text-brand-300">{subtitle}</div>
+        <div className="mt-0.5 rounded bg-brand-500/10 px-1 py-0.5 text-[10px] font-semibold leading-tight text-brand-700 dark:text-brand-300">
+          👉 {subtitle}
+        </div>
       )}
       {!hideSchedule && (
         <div className="text-[9px] text-slate-500 dark:text-slate-400">

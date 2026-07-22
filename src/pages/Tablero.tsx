@@ -250,6 +250,11 @@ export function Tablero() {
                       {s?.code}
                     </span>
                   </div>
+                  {sched.commissionByCode.get(code)?.label && (
+                    <div className="mt-1 inline-block rounded bg-brand-500/10 px-1.5 py-0.5 text-xs font-semibold text-brand-700 dark:text-brand-300">
+                      👉 {sched.commissionByCode.get(code)!.label}
+                    </div>
+                  )}
                   <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     {s?.track} · {s?.year}° año
                     {inChain && (
