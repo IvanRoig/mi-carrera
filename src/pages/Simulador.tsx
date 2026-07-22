@@ -132,6 +132,7 @@ function forcedFromSchedule(sched: ScheduleResult) {
 function MateriaChip({
   code,
   time,
+  subtitle,
   chain,
   continuing,
   onPointerDown,
@@ -142,6 +143,8 @@ function MateriaChip({
 }: {
   code: string;
   time?: string;
+  /** Texto secundario (p.ej. la electiva real ofrecida ese día). */
+  subtitle?: string;
   chain?: Set<string>;
   continuing?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
@@ -173,6 +176,9 @@ function MateriaChip({
         {s.isElective && '◌ '}
         {name(code)}
       </div>
+      {subtitle && (
+        <div className="text-[9px] font-medium text-brand-600 dark:text-brand-300">{subtitle}</div>
+      )}
       {!hideSchedule && (
         <div className="text-[9px] text-slate-500 dark:text-slate-400">
           {continuing ? 'continúa (anual)' : time ? `🕒 ${time}` : 'a distancia'}
@@ -218,6 +224,7 @@ function TermGrid({
       key={code}
       code={code}
       time={commTime(assigned.get(code))}
+      subtitle={assigned.get(code)?.label}
       chain={chain}
       continuing={contSet.has(code)}
     />
@@ -717,6 +724,7 @@ function ManualView() {
                 key={sd.code}
                 code={sd.code}
                 time={commTime(sd.commission)}
+                subtitle={sd.commission?.label}
                 continuing={cont}
                 onPointerDown={cont ? undefined : startPointerDrag(sd.code)}
                 dimmed={dragging === sd.code}
