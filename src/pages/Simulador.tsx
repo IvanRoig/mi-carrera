@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useDerived } from '@/lib/useDerived';
+import { useDerived, useSchedule } from '@/lib/useDerived';
 import { useStore } from '@/store/useStore';
 import { graph } from '@/domain/planGraph';
 import { getSubject } from '@/data/plan';
@@ -230,12 +230,13 @@ function AutoView({
   onEditManual: (terms: { subjects: string[] }[]) => void;
 }) {
   const d = useDerived();
+  const autoSched = useSchedule();
   const settings = useStore((s) => s.user.settings);
   const offer = useStore((s) => s.offer);
   const difficultArr = useStore((s) => s.user.difficult);
 
   const s = useMemo(() => {
-    if (!sicario) return d.schedule;
+    if (!sicario) return autoSched;
     return schedule({
       graph,
       pending: d.pending,
@@ -245,7 +246,7 @@ function AutoView({
       difficult: new Set(difficultArr),
       sicario: true,
     });
-  }, [sicario, d.schedule, d.pending, d.done, settings, offer, difficultArr]);
+  }, [sicario, autoSched, d.pending, d.done, settings, offer, difficultArr]);
 
   const chain = new Set(s.criticalChain);
 
@@ -360,6 +361,7 @@ type DayStatus = { kind: 'ok' | 'no-oferta' | 'conflict' | 'block'; reason: stri
 
 function ManualView() {
   const d = useDerived();
+  const autoSched = useSchedule();
   const name = useSubjectName();
   const manualTerms = useStore((s) => s.manualTerms);
   const manualForcedDay = useStore((s) => s.manualForcedDay);
@@ -396,12 +398,15 @@ function ManualView() {
   );
 
   function seedFromAuto() {
-    setManualTerms(d.schedule.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
+    setManualTerms(autoSched.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
   }
 
-  function autocompleteRest() {
+  // Deja fijos los cuatris 0..keepUpTo (incluido) y autocompleta el resto,
+  // descartando y recalculando lo que venía después.
+  function autocompleteFrom(keepUpTo: number) {
+    const keep = manualTerms.slice(0, keepUpTo + 1);
     const preScheduled = new Map<string, number>();
-    manualTerms.forEach((t, i) => t.subjects.forEach((c) => preScheduled.set(c, i)));
+    keep.forEach((t, i) => t.subjects.forEach((c) => preScheduled.set(c, i)));
     const remaining = new Set([...d.pending].filter((c) => !preScheduled.has(c)));
     const res = schedule({
       graph,
@@ -411,9 +416,13 @@ function ManualView() {
       offer,
       difficult: new Set(difficultArr),
       preScheduled,
-      firstFreeTerm: manualTerms.length,
+      firstFreeTerm: keep.length,
     });
     setManualTerms(res.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
+  }
+
+  function autocompleteRest() {
+    autocompleteFrom(manualTerms.length - 1);
   }
 
   // finish de cada materia (para correlativas de la que arrastrás).
@@ -513,7 +522,7 @@ function ManualView() {
             Manual: {diag.makespan} cuatris · {formatGraduation(diag.graduation)}
           </Badge>
           <Badge className="bg-slate-500/15 text-slate-600 ring-slate-500/30 dark:text-slate-300">
-            Automático: {d.schedule.makespan} cuatris
+            Automático: {autoSched.makespan} cuatris
           </Badge>
           {diag.placedCount < d.pending.size && (
             <span className="text-xs text-amber-600 dark:text-amber-400">
@@ -532,8 +541,9 @@ function ManualView() {
             onClick={autocompleteRest}
             disabled={manualTerms.length === 0}
             className="rounded-lg border border-brand-500 px-3 py-1.5 text-sm font-medium text-brand-600 hover:bg-brand-500/10 disabled:opacity-40 dark:text-brand-300"
+            title="Deja fijos TODOS los cuatris que ya armaste y completa solo las materias que faltan ubicar en cuatris nuevos. Para fijar solo hasta un cuatri, usá el botón '🪄 completar desde acá' de ese cuatri."
           >
-            Autocompletar el resto
+            Autocompletar lo que falta
           </button>
           <button onClick={addManualTerm} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium dark:border-slate-700">
             + Agregar cuatri
@@ -552,7 +562,7 @@ function ManualView() {
 
       {hoverStatus && (
         <div
-          className={`fixed inset-x-0 bottom-5 z-50 mx-auto w-fit max-w-[92vw] rounded-xl border px-4 py-2.5 text-sm font-medium shadow-2xl backdrop-blur ${
+          className={`pointer-events-none fixed inset-x-0 bottom-5 z-50 mx-auto w-fit max-w-[92vw] rounded-xl border px-4 py-2.5 text-sm font-medium shadow-2xl backdrop-blur ${
             hoverStatus.kind === 'ok'
               ? 'border-emerald-500/50 bg-emerald-500/95 text-white'
               : hoverStatus.kind === 'no-oferta'
@@ -581,7 +591,7 @@ function ManualView() {
               <MateriaChip
                 key={code}
                 code={code}
-                chain={new Set(d.schedule.criticalChain)}
+                chain={new Set(autoSched.criticalChain)}
                 draggable
                 onDragStart={startDrag(code)}
                 onDragEnd={endDrag}
@@ -627,6 +637,13 @@ function ManualView() {
                         {t.conflictCount} choque{t.conflictCount > 1 ? 's' : ''}
                       </span>
                     )}
+                    <button
+                      onClick={() => autocompleteFrom(idx)}
+                      className="rounded bg-brand-500/10 px-1.5 py-0.5 text-brand-600 hover:bg-brand-500/20 dark:text-brand-300"
+                      title="Fijar hasta este cuatri (incluido) y autocompletar los siguientes"
+                    >
+                      🪄 completar desde acá
+                    </button>
                     <button onClick={() => removeManualTerm(t.id)} className="text-slate-400 hover:text-rose-500" title="Eliminar cuatri">
                       ✕
                     </button>

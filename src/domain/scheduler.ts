@@ -21,6 +21,7 @@ import {
   findConflictFreeAssignment,
   offeringMap,
   commissionFitsAvailability,
+  commissionsOverlap,
   isNightCommission,
 } from './conflicts';
 
@@ -124,12 +125,15 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/** Cota inferior de makespan por capacidad (cada anual ocupa 2 slots). */
-function capacityLowerBound(input: ScheduleInput, cap: number): number {
-  if (!isFinite(cap)) return 1;
+/** Cota inferior de makespan: por capacidad y por ruta crítica (lo que sea mayor). */
+function lowerBound(input: ScheduleInput, cap: number): number {
   let slots = 0;
   for (const c of input.pending) slots += input.graph.byCode.get(c)?.annual ? 2 : 1;
-  return Math.max(1, Math.ceil(slots / cap));
+  const capLB = isFinite(cap) ? Math.ceil(slots / cap) : 1;
+  const down = longestDownstreamTerms(input.graph, input.pending);
+  let critLB = 0;
+  for (const v of down.values()) critLB = Math.max(critLB, v);
+  return Math.max(1, capLB, critLB);
 }
 
 /**
@@ -149,34 +153,25 @@ export function schedule(input: ScheduleInput): ScheduleResult {
     return r;
   }
 
-  // 1) Mejor makespan: greedy determinístico + reintentos aleatorios hasta la
-  //    cota inferior (si ya la alcanza, no reintenta).
-  const lb = capacityLowerBound(input, effectiveMax);
+  // 1) Mejor makespan: greedy determinístico. Solo reintenta (pocas veces) si no
+  //    alcanzó la cota inferior teórica; si ya la alcanzó, es óptimo → no reintenta.
+  const lb = lowerBound(input, effectiveMax);
   let bestM = runSchedule(input, effectiveMax, maps).makespan;
-  for (let i = 1; i <= 40 && bestM > lb; i++) {
+  for (let i = 1; i <= 8 && bestM > lb; i++) {
     const m = runSchedule(input, effectiveMax, maps, mulberry32(i * 2654435761)).makespan;
     if (m < bestM) bestM = m;
   }
 
-  // 2) Carga pareja: menor tope que sigue logrando bestM.
+  // 2) Carga pareja: menor tope que sigue logrando bestM (determinístico).
   let lo = 1;
   let hi = effectiveMax;
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
-    let m = runSchedule(input, mid, maps).makespan;
-    for (let i = 1; i <= 12 && m > bestM; i++) {
-      m = Math.min(m, runSchedule(input, mid, maps, mulberry32(i * 40503)).makespan);
-    }
-    if (m === bestM) hi = mid;
+    if (runSchedule(input, mid, maps).makespan === bestM) hi = mid;
     else lo = mid + 1;
   }
 
-  // 3) Resultado final en ese tope (determinístico + reintentos por si ayuda).
-  let result = runSchedule(input, lo, maps);
-  for (let i = 1; i <= 12 && result.makespan > bestM; i++) {
-    const r = runSchedule(input, lo, maps, mulberry32(i * 2246822519));
-    if (r.makespan < result.makespan) result = r;
-  }
+  const result = runSchedule(input, lo, maps);
   result.commissionByCode = assignAllCommissions(result, maps);
   return result;
 }
@@ -275,8 +270,9 @@ function runSchedule(
       eligible.sort((a, b) => comparePriority(a, b, metrics));
     }
 
-    // Materias ofertadas ya elegidas este cuatri (para chequear choques).
+    // Comisiones ya elegidas este cuatri (para chequear choques, incremental).
     const chosenOffered: string[] = [];
+    let chosenComms: Commission[] = [];
     for (const c of eligible) {
       const s = sub(c);
       const needsNext = s.annual;
@@ -291,13 +287,20 @@ function runSchedule(
         if (needsNext && diffUsed[t + 1] >= settings.maxDifficultPerTerm) continue;
       }
 
-      // Choques de horario: la materia debe poder cursarse junto con las ya
-      // elegidas sin solaparse (usando la oferta como referencia). Materias sin
-      // comisión conocida (o sin comisión en tu disponibilidad) se ubican libres.
-      if (termOff && (termOff.get(c)?.commissions.length ?? 0) > 0) {
-        const codes = [...chosenOffered, c];
-        if (!findConflictFreeAssignment(codes, termOff)) continue;
-        chosenOffered.push(c);
+      // Choques: la materia debe poder cursarse junto con las ya elegidas sin
+      // solaparse. First-fit rápido; si falla, un backtracking (raro).
+      const comms = termOff?.get(c)?.commissions;
+      if (comms && comms.length > 0) {
+        const pick = comms.find((cm) => !chosenComms.some((u) => commissionsOverlap(u, cm)));
+        if (pick) {
+          chosenOffered.push(c);
+          chosenComms.push(pick);
+        } else {
+          const asg = findConflictFreeAssignment([...chosenOffered, c], termOff!);
+          if (!asg) continue; // no entra sin choque
+          chosenOffered.push(c);
+          chosenComms = chosenOffered.map((x) => asg.get(x)!);
+        }
       }
 
       used[t]++;

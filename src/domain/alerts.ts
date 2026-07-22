@@ -54,10 +54,11 @@ export function generateAlerts(
     });
   }
 
-  // 3) Materias de ruta crítica con oferta escasa.
+  // 3) Materias de ruta crítica con oferta escasa (solo las que podés cursar ya).
   if (offer) {
     const offMap = offeringMap(offer);
     for (const c of sched.criticalChain) {
+      if (statuses.get(c) !== 'eligible') continue; // no avisar de las que aún no podés
       const o = offMap.get(c);
       if (o && o.commissions.length === 1) {
         const cm = o.commissions[0];
