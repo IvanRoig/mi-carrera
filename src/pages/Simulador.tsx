@@ -401,10 +401,27 @@ function ManualView() {
     setManualTerms(autoSched.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
   }
 
+  const sameSubjects = (a: string[], b: string[]) => {
+    if (a.length !== b.length) return false;
+    const setB = new Set(b);
+    return a.every((c) => setB.has(c));
+  };
+
   // Deja fijos los cuatris 0..keepUpTo (incluido) y autocompleta el resto,
   // descartando y recalculando lo que venía después.
   function autocompleteFrom(keepUpTo: number) {
     const keep = manualTerms.slice(0, keepUpTo + 1);
+    // Consistencia: si lo que fijaste coincide con el automático, usamos el
+    // automático completo (así "completar desde acá" == "sembrar" cuando no cambiaste nada).
+    const matchesAuto =
+      keep.length <= autoSched.terms.length &&
+      keep.every((t, i) => sameSubjects(t.subjects, autoSched.terms[i].subjects));
+    if (matchesAuto) {
+      setManualTerms(
+        autoSched.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })),
+      );
+      return;
+    }
     const preScheduled = new Map<string, number>();
     keep.forEach((t, i) => t.subjects.forEach((c) => preScheduled.set(c, i)));
     const remaining = new Set([...d.pending].filter((c) => !preScheduled.has(c)));
