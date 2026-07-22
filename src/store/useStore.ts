@@ -47,6 +47,9 @@ export type StoreState = {
   scenarios: Scenario[];
   /** Plan armado a mano (simulador manual). */
   manualTerms: ManualTerm[];
+  /** Día forzado por materia en el manual (0=Lun..5=Sáb, -1=distancia). Sin
+   * entrada = elección automática de comisión. */
+  manualForcedDay: Record<string, number>;
   /** Oferta de comisiones del cuatrimestre cargada (opcional). */
   offer: OfferData | null;
 
@@ -77,6 +80,9 @@ export type StoreState = {
   // --- Simulador manual ---
   setManualTerms: (terms: ManualTerm[]) => void;
   moveToManualTerm: (code: string, termId: string | null) => void;
+  /** Coloca una materia en un cuatri y un día específico (elige la comisión de
+   * ese día; si no hay, la deja "forzada" a ese día con aviso). */
+  placeOnDay: (code: string, termId: string, day: number) => void;
   addManualTerm: () => void;
   removeManualTerm: (termId: string) => void;
 
@@ -115,6 +121,7 @@ export const useStore = create<StoreState>()(
       electiveNames: {},
       scenarios: [],
       manualTerms: [],
+      manualForcedDay: {},
       offer: baseOffer,
 
       setApproved: (code, grade) =>
@@ -269,6 +276,7 @@ export const useStore = create<StoreState>()(
           electiveNames: {},
           scenarios: [],
           manualTerms: [],
+          manualForcedDay: {},
           offer: baseOffer,
         })),
 
@@ -285,11 +293,10 @@ export const useStore = create<StoreState>()(
       removeScenario: (id) =>
         set((s) => ({ scenarios: s.scenarios.filter((x) => x.id !== id) })),
 
-      setManualTerms: (terms) => set(() => ({ manualTerms: terms })),
+      setManualTerms: (terms) => set(() => ({ manualTerms: terms, manualForcedDay: {} })),
 
       moveToManualTerm: (code, termId) =>
         set((s) => {
-          // Sacar de todos los cuatris.
           const terms = s.manualTerms.map((t) => ({
             ...t,
             subjects: t.subjects.filter((c) => c !== code),
@@ -297,13 +304,26 @@ export const useStore = create<StoreState>()(
           if (termId) {
             const idx = terms.findIndex((t) => t.id === termId);
             if (idx >= 0 && !terms[idx].subjects.includes(code)) {
-              terms[idx] = {
-                ...terms[idx],
-                subjects: [...terms[idx].subjects, code],
-              };
+              terms[idx] = { ...terms[idx], subjects: [...terms[idx].subjects, code] };
             }
           }
-          return { manualTerms: terms };
+          // Al mover a un cuatri (sin día), vuelve a elección automática de comisión.
+          const forced = { ...s.manualForcedDay };
+          delete forced[code];
+          return { manualTerms: terms, manualForcedDay: forced };
+        }),
+
+      placeOnDay: (code, termId, day) =>
+        set((s) => {
+          const terms = s.manualTerms.map((t) => ({
+            ...t,
+            subjects: t.subjects.filter((c) => c !== code),
+          }));
+          const idx = terms.findIndex((t) => t.id === termId);
+          if (idx >= 0 && !terms[idx].subjects.includes(code)) {
+            terms[idx] = { ...terms[idx], subjects: [...terms[idx].subjects, code] };
+          }
+          return { manualTerms: terms, manualForcedDay: { ...s.manualForcedDay, [code]: day } };
         }),
 
       addManualTerm: () =>

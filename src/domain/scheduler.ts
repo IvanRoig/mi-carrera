@@ -1,30 +1,27 @@
 /**
  * scheduler.ts — Simulador de cuatrimestres.
  *
- * Objetivo: recibirte en la MENOR cantidad de cuatrimestres, y — con esa meta
- * asegurada — hacer la MENOR cantidad de materias por cuatri de forma pareja.
+ * Objetivo: recibirte en la MENOR cantidad de cuatrimestres, con carga pareja y
+ * — clave — SIN choques de horario: nunca dos materias el mismo día y horario.
  *
  * Cómo:
- *  1. `runSchedule(cap)`: list scheduling greedy por ruta crítica + compactación
- *     + balanceo, con un tope de `cap` materias por cuatri.
- *  2. `schedule()`: busca el MENOR `cap` que sigue logrando el makespan mínimo.
- *     Así, si podés recibirte igual de rápido haciendo 5 por cuatri en vez de 6,
- *     arma cuatris de 5 (más parejo, menos exigido), sin atrasar el egreso.
- *
- * Restricciones: precedencia, capacidad, `annual` (ocupa 2 cuatris, solo arranca
- * en 1er cuatri), `startsOnlyFirstSemester` (Proyecto Final), choques de horario y
- * disponibilidad en el cuatri inmediato (con oferta), y tope opcional de difíciles.
+ *  1. `runSchedule(cap)`: list scheduling greedy por ruta crítica, pero cada
+ *     cuatri se arma verificando que exista una asignación de comisiones sin
+ *     solapamientos (usa la oferta cargada como referencia para TODOS los cuatris).
+ *  2. `schedule()`: busca el menor tope por cuatri que igual logra el makespan
+ *     mínimo (carga pareja) y calcula la comisión asignada a cada materia.
  */
 
 import type { Subject, UserSettings } from './types';
 import type { Graph } from './graph';
 import { computePriorityMetrics, comparePriority, priorityScore } from './priority';
 import { longestDownstreamTerms } from './graph';
-import type { OfferData, Offering } from './conflicts';
+import type { OfferData, Offering, Commission } from './conflicts';
 import {
   findConflictFreeAssignment,
   offeringMap,
   commissionFitsAvailability,
+  isNightCommission,
 } from './conflicts';
 
 export type PlannedTerm = {
@@ -44,6 +41,8 @@ export type ScheduleResult = {
   criticalChain: string[];
   startByCode: Map<string, number>;
   finishByCode: Map<string, number>;
+  /** Comisión (día/horario) asignada a cada materia, sin choques. */
+  commissionByCode: Map<string, Commission>;
   graduation: { year: number; month: number };
 };
 
@@ -56,11 +55,8 @@ export type ScheduleInput = {
   difficult?: Set<string>;
   scarcity?: Map<string, number>;
   maxTerms?: number;
-  /** Modo sicario: sin tope de materias por cuatri (lo antes posible). */
   sicario?: boolean;
-  /** Materias fijas (prefijo armado a mano): código → índice de cuatri. */
   preScheduled?: Map<string, number>;
-  /** Desde qué cuatri empezar a autocompletar (después del prefijo manual). */
   firstFreeTerm?: number;
 };
 
@@ -75,55 +71,102 @@ export function calendarOf(
   return { year, term, isFirstSemester: term === 1 };
 }
 
+/** Ordena comisiones por preferencia: primero las de tu disponibilidad, luego noche. */
+function preferenceComparator(availableSlots: Set<string> | null) {
+  return (a: Commission, b: Commission) => {
+    const score = (c: Commission) =>
+      (availableSlots ? (commissionFitsAvailability(c, availableSlots) ? 0 : 4) : 0) +
+      (isNightCommission(c) ? 0 : 1);
+    return score(a) - score(b);
+  };
+}
+
+/** Prepara los mapas de oferta que usa el scheduler para evitar choques. */
+function buildOfferMaps(input: ScheduleInput) {
+  const offMap = input.offer ? offeringMap(input.offer) : null;
+  const availableSlots = input.settings.restrictAvailability
+    ? new Set(input.settings.availableSlots)
+    : null;
+  if (!offMap) return { offMapPref: null, offMap0: null, availableSlots };
+
+  const cmp = preferenceComparator(availableSlots);
+  const base = new Map<string, Offering>();
+  for (const [code, o] of offMap) {
+    let comms = [...o.commissions].sort(cmp);
+    if (availableSlots) {
+      // Tu disponibilidad aplica a todos los cuatris. Si la materia tiene alguna
+      // comisión que podés, usamos SOLO esas; si no tiene ninguna, queda vacía
+      // (se ubica igual, sin restricción de choque, y se avisa en el manual).
+      const avail = comms.filter((c) => commissionFitsAvailability(c, availableSlots));
+      comms = avail;
+    }
+    base.set(code, { ...o, commissions: comms });
+  }
+  return { offMapPref: base, offMap0: base, availableSlots };
+}
+
+/** ¿Se pueden cursar todas estas materias juntas sin choque de horario? */
+function termFeasible(codes: string[], offMap: Map<string, Offering> | null): boolean {
+  if (!offMap) return true;
+  const offered = codes.filter((c) => (offMap.get(c)?.commissions.length ?? 0) > 0);
+  return findConflictFreeAssignment(offered, offMap) !== null;
+}
+
 /**
- * Programa balanceado: busca el menor tope por cuatri que igual logra el makespan
- * mínimo. Resultado: carga pareja sin atrasar el egreso.
+ * Busca el menor tope por cuatri que igual logra el makespan mínimo, y calcula
+ * la asignación de comisiones (sin choques) para el resultado final.
  */
 export function schedule(input: ScheduleInput): ScheduleResult {
   const effectiveMax = input.sicario
     ? Math.max(1, input.pending.size)
     : Math.max(1, input.settings.maxPerTerm);
 
-  if (input.pending.size === 0) return runSchedule(input, effectiveMax);
+  const maps = buildOfferMaps(input);
 
-  const minMakespan = runSchedule(input, effectiveMax).makespan;
+  const finalCap = (() => {
+    if (input.pending.size === 0) return effectiveMax;
+    const minMakespan = runSchedule(input, effectiveMax, maps).makespan;
+    let lo = 1;
+    let hi = effectiveMax;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (runSchedule(input, mid, maps).makespan === minMakespan) hi = mid;
+      else lo = mid + 1;
+    }
+    return lo;
+  })();
 
-  // makespan es no-creciente en el tope, así que hay un umbral: el menor tope que
-  // mantiene el makespan mínimo. Búsqueda binaria.
-  let lo = 1;
-  let hi = effectiveMax;
-  while (lo < hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (runSchedule(input, mid).makespan === minMakespan) hi = mid;
-    else lo = mid + 1;
-  }
-  return runSchedule(input, lo);
+  const result = runSchedule(input, finalCap, maps);
+  result.commissionByCode = assignAllCommissions(result, maps);
+  return result;
 }
 
-/** Corre el greedy con un tope fijo `cap` de materias por cuatri. */
-function runSchedule(input: ScheduleInput, cap: number): ScheduleResult {
+/** Asigna comisiones sin choques a cada cuatri del resultado final. */
+function assignAllCommissions(
+  result: ScheduleResult,
+  maps: ReturnType<typeof buildOfferMaps>,
+): Map<string, Commission> {
+  const out = new Map<string, Commission>();
+  if (!maps.offMapPref) return out;
+  result.terms.forEach((t) => {
+    const offMap = t.index === 0 ? maps.offMap0! : maps.offMapPref!;
+    const offered = t.subjects.filter((c) => (offMap.get(c)?.commissions.length ?? 0) > 0);
+    const asg = findConflictFreeAssignment(offered, offMap);
+    if (asg) for (const [code, comm] of asg) out.set(code, comm);
+  });
+  return out;
+}
+
+/** Corre el greedy con un tope fijo `cap`, evitando choques en cada cuatri. */
+function runSchedule(
+  input: ScheduleInput,
+  cap: number,
+  maps: ReturnType<typeof buildOfferMaps>,
+): ScheduleResult {
   const { graph, settings } = input;
   const maxTerms = input.maxTerms ?? 60;
   const difficult = input.difficult ?? new Set<string>();
-  const offMap = input.offer ? offeringMap(input.offer) : null;
-
-  const availableSlots = settings.restrictAvailability
-    ? new Set(settings.availableSlots)
-    : null;
-  const offMap0: Map<string, Offering> | null = (() => {
-    if (!offMap) return null;
-    if (!availableSlots) return offMap;
-    const m = new Map<string, Offering>();
-    for (const [code, off] of offMap) {
-      m.set(code, {
-        ...off,
-        commissions: off.commissions.filter((cm) =>
-          commissionFitsAvailability(cm, availableSlots),
-        ),
-      });
-    }
-    return m;
-  })();
+  const { offMapPref, offMap0 } = maps;
 
   const pending = new Set(input.pending);
   const done = new Set(input.done);
@@ -143,7 +186,6 @@ function runSchedule(input: ScheduleInput, cap: number): ScheduleResult {
   const termsSubjects: string[][] = [];
   const sub = (c: string) => graph.byCode.get(c) as Subject;
 
-  // Prefijo fijo (armado a mano): ocupa cuatris y no se mueve.
   const locked = new Set<string>();
   if (input.preScheduled) {
     for (const [c, tt] of input.preScheduled) {
@@ -171,6 +213,7 @@ function runSchedule(input: ScheduleInput, cap: number): ScheduleResult {
     termsSubjects[t] = termsSubjects[t] ?? [];
     const cal = calendarOf(t, settings.startYear, settings.startTerm);
     const metrics = computePriorityMetrics(graph, pending, input.scarcity);
+    const termOff = t === 0 ? offMap0 : offMapPref;
 
     const eligible: string[] = [];
     for (const c of pending) {
@@ -181,7 +224,8 @@ function runSchedule(input: ScheduleInput, cap: number): ScheduleResult {
     }
     eligible.sort((a, b) => comparePriority(a, b, metrics));
 
-    const offeredChosen: string[] = [];
+    // Materias ofertadas ya elegidas este cuatri (para chequear choques).
+    const chosenOffered: string[] = [];
     for (const c of eligible) {
       const s = sub(c);
       const needsNext = s.annual;
@@ -196,13 +240,13 @@ function runSchedule(input: ScheduleInput, cap: number): ScheduleResult {
         if (needsNext && diffUsed[t + 1] >= settings.maxDifficultPerTerm) continue;
       }
 
-      // Cuatri inmediato (índice 0): disponibilidad + choques.
-      if (t === 0 && offMap && offMap.has(c)) {
-        const fitting = offMap0!.get(c)?.commissions ?? [];
-        if (availableSlots && fitting.length === 0) continue;
-        const tentative = [...offeredChosen, c];
-        if (!findConflictFreeAssignment(tentative, offMap0!)) continue;
-        offeredChosen.push(c);
+      // Choques de horario: la materia debe poder cursarse junto con las ya
+      // elegidas sin solaparse (usando la oferta como referencia). Materias sin
+      // comisión conocida (o sin comisión en tu disponibilidad) se ubican libres.
+      if (termOff && (termOff.get(c)?.commissions.length ?? 0) > 0) {
+        const codes = [...chosenOffered, c];
+        if (!findConflictFreeAssignment(codes, termOff)) continue;
+        chosenOffered.push(c);
       }
 
       used[t]++;
@@ -220,8 +264,8 @@ function runSchedule(input: ScheduleInput, cap: number): ScheduleResult {
   }
 
   const result = buildResult(graph, termsSubjects, startByCode, finishByCode, settings, difficult);
-  const compacted = improve(input, result, cap, difficult, locked);
-  return balance(input, compacted, cap, difficult, locked);
+  const compacted = improve(input, result, cap, difficult, locked, offMapPref);
+  return balance(input, compacted, cap, difficult, locked, offMapPref);
 }
 
 function buildResult(
@@ -259,19 +303,25 @@ function buildResult(
 
   const lastCal = calendarOf(Math.max(0, makespan - 1), settings.startYear, settings.startTerm);
   const graduation = { year: lastCal.year, month: lastCal.term === 1 ? 7 : 12 };
-
   const pending = new Set([...startByCode.keys()]);
-  const criticalChain = extractCriticalChain(graph, pending);
 
   return {
     terms,
     makespan,
     years: makespan / 2,
-    criticalChain,
+    criticalChain: extractCriticalChain(graph, pending),
     startByCode,
     finishByCode,
+    commissionByCode: new Map(),
     graduation,
   };
+}
+
+/** Cuatri → códigos (desde startByCode). */
+function codesByTerm(startByCode: Map<string, number>, makespan: number): string[][] {
+  const out: string[][] = Array.from({ length: makespan }, () => []);
+  for (const [c, t] of startByCode) if (t < makespan) out[t].push(c);
+  return out;
 }
 
 /** Compactación: mueve materias del último cuatri a cuatris previos con lugar. */
@@ -281,6 +331,7 @@ function improve(
   cap: number,
   difficult: Set<string>,
   locked: Set<string>,
+  offMapPref: Map<string, Offering> | null,
 ): ScheduleResult {
   const { graph, settings } = input;
   let current = result;
@@ -298,6 +349,7 @@ function improve(
       used[tStart]++;
       if (s.annual && tStart + 1 < makespan) used[tStart + 1]++;
     }
+    const termCodes = codesByTerm(startByCode, makespan);
 
     const lastTerm = makespan - 1;
     const lastSubjects = [...startByCode.entries()]
@@ -316,10 +368,12 @@ function improve(
         if ((s.annual || s.startsOnlyFirstSemester) && !cal.isFirstSemester) continue;
         if (used[t] >= cap) continue;
         if (s.annual && used[t + 1] >= cap) continue;
+        if (!termFeasible([...termCodes[t], c], offMapPref)) continue;
         startByCode.set(c, t);
         finishByCode.set(c, s.annual ? t + 1 : t);
         used[t]++;
         if (s.annual) used[t + 1]++;
+        termCodes[t].push(c);
         improved = true;
         break;
       }
@@ -338,16 +392,14 @@ function improve(
   return current;
 }
 
-/**
- * Balanceo: sin cambiar el makespan, empareja la carga llenando los cuatris más
- * flojos con materias de los más cargados (respetando precedencia y calendario).
- */
+/** Balanceo: empareja la carga entre cuatris (respetando precedencia y choques). */
 function balance(
   input: ScheduleInput,
   result: ScheduleResult,
   cap: number,
   difficult: Set<string>,
   locked: Set<string>,
+  offMapPref: Map<string, Offering> | null,
 ): ScheduleResult {
   const { graph, settings } = input;
   const M = result.makespan;
@@ -364,6 +416,7 @@ function balance(
     const s = graph.byCode.get(c)!;
     if (s.annual && t + 1 < M) occ[t + 1]++;
   }
+  const termCodes = codesByTerm(startByCode, M);
 
   const canMove = (c: string, t2: number): boolean => {
     if (locked.has(c)) return false;
@@ -373,7 +426,6 @@ function balance(
     const cal = calendarOf(t2, settings.startYear, settings.startTerm);
     if ((s.annual || s.startsOnlyFirstSemester) && !cal.isFirstSemester) return false;
     if (s.annual && t2 + 1 >= M) return false;
-    // No tocar el cuatri inmediato si hay oferta (para no romper choques/disponibilidad).
     if (input.offer && (t2 === 0 || cur === 0)) return false;
     if (occ[t2] >= cap) return false;
     if (s.annual && occ[t2 + 1] >= cap) return false;
@@ -385,6 +437,7 @@ function balance(
       const ds = startByCode.get(d);
       if (ds !== undefined && ds <= newFinish) return false;
     }
+    if (!termFeasible([...termCodes[t2], c], offMapPref)) return false;
     return true;
   };
 
@@ -397,21 +450,19 @@ function balance(
     started[t2]++;
     occ[t2]++;
     if (s.annual && t2 + 1 < M) occ[t2 + 1]++;
+    termCodes[cur] = termCodes[cur].filter((x) => x !== c);
+    termCodes[t2].push(c);
     startByCode.set(c, t2);
     finishByCode.set(c, t2 + (s.annual ? 1 : 0));
   };
 
   let guard = 0;
   while (guard++ < 500) {
-    // Cuatri menos cargado.
     let lo = 0;
     for (let t = 1; t < M; t++) if (started[t] < started[lo]) lo = t;
-
-    // Traer una materia desde cualquier cuatri con carga suficientemente mayor.
     const sources = [...startByCode.entries()]
       .filter(([, t]) => started[t] > started[lo] + 1)
       .sort((a, b) => started[b[1]] - started[a[1]]);
-
     let moved = false;
     for (const [c] of sources) {
       if (canMove(c, lo)) {
