@@ -37,7 +37,10 @@ function yearsLabel(years: number): string {
 }
 
 export function Simulador() {
-  const [mode, setMode] = useState<'auto' | 'sicario' | 'manual'>('auto');
+  // El modo vive en el store (no en estado local) para que al cambiar de
+  // pestaña y volver sigas donde estabas (auto la 1ra vez, manual si lo dejaste ahí).
+  const mode = useStore((s) => s.simMode);
+  const setMode = useStore((s) => s.setSimMode);
   const seedManual = useStore((s) => s.seedManual);
 
   // Pasa el plan automático a manual TAL CUAL (mismos días/turnos fijados).

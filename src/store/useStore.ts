@@ -52,6 +52,9 @@ export type StoreState = {
   manualForcedDay: Record<string, number>;
   /** Turno forzado por materia en el manual ('m'|'t'|'n'). Opcional. */
   manualForcedTurno: Record<string, 'm' | 't' | 'n'>;
+  /** Modo activo del simulador. Se recuerda al cambiar de pestaña (arranca en
+   * 'auto', pero si lo dejaste en 'manual', al volver seguís en 'manual'). */
+  simMode: 'auto' | 'sicario' | 'manual';
   /** Oferta de comisiones del cuatrimestre cargada (opcional). */
   offer: OfferData | null;
 
@@ -79,7 +82,8 @@ export type StoreState = {
   addScenario: (s: Omit<Scenario, 'id'>) => void;
   removeScenario: (id: string) => void;
 
-  // --- Simulador manual ---
+  // --- Simulador ---
+  setSimMode: (mode: 'auto' | 'sicario' | 'manual') => void;
   setManualTerms: (terms: ManualTerm[]) => void;
   /** Setea el plan manual fijando el día/turno de cada materia (estable). */
   seedManual: (
@@ -133,6 +137,7 @@ export const useStore = create<StoreState>()(
       manualTerms: [],
       manualForcedDay: {},
       manualForcedTurno: {},
+      simMode: 'auto',
       offer: baseOffer,
 
       setApproved: (code, grade) =>
@@ -289,6 +294,7 @@ export const useStore = create<StoreState>()(
           manualTerms: [],
           manualForcedDay: {},
           manualForcedTurno: {},
+          simMode: 'auto',
           offer: baseOffer,
         })),
 
@@ -304,6 +310,8 @@ export const useStore = create<StoreState>()(
 
       removeScenario: (id) =>
         set((s) => ({ scenarios: s.scenarios.filter((x) => x.id !== id) })),
+
+      setSimMode: (mode) => set(() => ({ simMode: mode })),
 
       setManualTerms: (terms) =>
         set(() => ({ manualTerms: terms, manualForcedDay: {}, manualForcedTurno: {} })),
