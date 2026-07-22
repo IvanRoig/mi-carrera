@@ -26,6 +26,8 @@ export type SubjectDiag = {
   commission?: Commission;
   /** Día donde se muestra (de la comisión, o el día forzado sin oferta). */
   day?: number;
+  /** Turno donde se muestra (forzado, o el de la comisión). */
+  turno?: 'm' | 't' | 'n';
   hasConflict?: boolean;
   /** No figura en la oferta actual (no tiene comisiones). */
   notOffered?: boolean;
@@ -68,30 +70,6 @@ function sortByPref(comms: Commission[], availableSlots: Set<string> | null): Co
   return [...comms].sort((a, b) => score(a) - score(b));
 }
 
-/** Asigna a cada código una comisión sin solapamientos (backtracking). null si no se puede. */
-function assignAvoiding(
-  codes: string[],
-  commsByCode: Map<string, Commission[]>,
-  taken: Commission[],
-): Map<string, Commission> | null {
-  const result = new Map<string, Commission>();
-  const bt = (i: number): boolean => {
-    if (i >= codes.length) return true;
-    for (const comm of commsByCode.get(codes[i]) ?? []) {
-      const clash =
-        taken.some((t) => commissionsOverlap(t, comm)) ||
-        [...result.values()].some((u) => commissionsOverlap(u, comm));
-      if (!clash) {
-        result.set(codes[i], comm);
-        if (bt(i + 1)) return true;
-        result.delete(codes[i]);
-      }
-    }
-    return false;
-  };
-  return bt(0) ? result : null;
-}
-
 export function validateManualPlan(
   graph: Graph,
   done: Set<string>,
@@ -124,55 +102,60 @@ export function validateManualPlan(
     const cal = calendarOf(i, settings.startYear, settings.startTerm);
     const commsOf = (code: string) => sortByPref(offMap?.get(code)?.commissions ?? [], availableSlots);
 
-    // --- Asignación de comisiones del cuatri (forzadas + automáticas) ---
+    // --- Posición de cada materia: función PURA de su propio día/turno forzado ---
+    // Nada depende de las otras materias: mover o sacar una jamás reubica a otra.
     const commByCode = new Map<string, Commission>();
+    const dayByCode = new Map<string, number>();
     const forcedNoDaySet = new Set<string>();
-    const conflictSet = new Set<string>();
-    const taken: Commission[] = [];
 
-    // 1) Forzadas por el usuario (día elegido).
     for (const code of t.subjects) {
-      const forced = forcedDay[code];
-      if (forced === undefined) continue;
-      const ft = forcedTurno[code];
       const comms = commsOf(code);
-      let onDay =
-        forced === -1
-          ? comms.filter((c) => c.modality === 'distancia' || c.meetings.length === 0)
-          : comms.filter((c) => c.meetings.some((m) => m.day === forced));
-      if (ft && forced !== -1) {
-        onDay = onDay.filter((c) =>
-          c.meetings.some((m) => m.day === forced && turnoOf(toMinutes(m.start)) === ft),
-        );
+      const forced = forcedDay[code];
+
+      // Sin día forzado: posición automática estable (1ra comisión por preferencia).
+      if (forced === undefined) {
+        if (comms.length > 0) {
+          const pick = comms[0];
+          commByCode.set(code, pick);
+          if (pick.meetings.length) {
+            dayByCode.set(
+              code,
+              [...pick.meetings].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))[0].day,
+            );
+          }
+        }
+        continue;
       }
-      if (onDay.length === 0) {
-        if (comms.length > 0) forcedNoDaySet.add(code);
-      } else {
-        const pick = onDay.find((c) => !taken.some((tk) => commissionsOverlap(tk, c))) ?? onDay[0];
-        if (taken.some((tk) => commissionsOverlap(tk, pick))) conflictSet.add(code);
-        commByCode.set(code, pick);
-        taken.push(pick);
+
+      // Modalidad a distancia (día -1): sin día en la grilla (va a "sin día").
+      if (forced === -1) {
+        const dist = comms.filter((c) => c.modality === 'distancia' || c.meetings.length === 0);
+        if (dist.length > 0) commByCode.set(code, dist[0]);
+        else if (comms.length > 0) forcedNoDaySet.add(code);
+        continue;
       }
+
+      // Día (y turno) concreto forzado: elegí la comisión de ESE slot, de forma
+      // determinística e independiente del resto. Si no hay oferta en ese slot,
+      // la materia se queda igual donde la dejaste, marcada como forcedNoDay.
+      const ft = forcedTurno[code];
+      const onDay = comms.filter((c) =>
+        c.meetings.some((m) => m.day === forced && (!ft || turnoOf(toMinutes(m.start)) === ft)),
+      );
+      if (onDay.length > 0) commByCode.set(code, onDay[0]);
+      else if (comms.length > 0) forcedNoDaySet.add(code);
+      dayByCode.set(code, forced); // el día que se muestra es SIEMPRE el que forzaste
     }
 
-    // 2) Automáticas (sin día forzado): asignación sin choques.
-    const autoCodes = t.subjects.filter(
-      (c) => forcedDay[c] === undefined && commsOf(c).length > 0,
-    );
-    const commsByCode = new Map<string, Commission[]>();
-    for (const c of autoCodes) commsByCode.set(c, commsOf(c));
-    const asg = assignAvoiding(autoCodes, commsByCode, taken);
-    if (asg) {
-      for (const [c, comm] of asg) commByCode.set(c, comm);
-    } else {
-      // No hay asignación sin choques: greedy marcando los que chocan.
-      for (const c of autoCodes) {
-        const comms = commsOf(c);
-        const free = comms.find((x) => !taken.some((tk) => commissionsOverlap(tk, x)));
-        const pick = free ?? comms[0];
-        if (!free) conflictSet.add(c);
-        commByCode.set(c, pick);
-        taken.push(pick);
+    // --- Conflictos: simétrico, no mueve nada. Marca a ambas materias que chocan. ---
+    const conflictSet = new Set<string>();
+    const placed = t.subjects.filter((c) => commByCode.has(c));
+    for (let a = 0; a < placed.length; a++) {
+      for (let b = a + 1; b < placed.length; b++) {
+        if (commissionsOverlap(commByCode.get(placed[a])!, commByCode.get(placed[b])!)) {
+          conflictSet.add(placed[a]);
+          conflictSet.add(placed[b]);
+        }
       }
     }
 
@@ -206,13 +189,17 @@ export function validateManualPlan(
         !commissionFitsAvailability(commission, availableSlots)
       );
 
-      let day: number | undefined;
-      if (commission) {
-        day = commission.meetings.length
-          ? [...commission.meetings].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))[0].day
-          : undefined;
-      } else if (forcedNoDay && forcedDay[code] >= 0) {
-        day = forcedDay[code];
+      // El día mostrado sale de dayByCode (el que forzaste, o el de la comisión
+      // automática) — nunca se recalcula en base a otras materias.
+      let day = dayByCode.get(code);
+      if (day === undefined && commission && commission.meetings.length) {
+        day = [...commission.meetings].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))[0].day;
+      }
+      // Turno mostrado: el forzado; si no, el de la comisión en ese día.
+      let turno = forcedTurno[code];
+      if (!turno && commission && day !== undefined) {
+        const m = commission.meetings.find((mm) => mm.day === day) ?? commission.meetings[0];
+        if (m) turno = turnoOf(toMinutes(m.start));
       }
 
       const ok = missing.length === 0 && !calendarError && !hasConflict && !forcedNoDay;
@@ -224,6 +211,7 @@ export function validateManualPlan(
         calendarError,
         commission,
         day,
+        turno,
         hasConflict,
         notOffered,
         notAvailable,

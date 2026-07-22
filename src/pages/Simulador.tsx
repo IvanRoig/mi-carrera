@@ -581,12 +581,12 @@ function ManualView() {
     const noDay: Item[] = [];
     const add = (sd: SubjectDiag, cont: boolean) => {
       const c = sd.commission;
-      if (sd.day != null && sd.day <= 5 && c && c.meetings.length) {
+      if (sd.day != null && sd.day >= 0 && sd.day <= 5 && c && c.meetings.length) {
         const m = c.meetings.find((mm) => mm.day === sd.day) ?? c.meetings[0];
-        cols.get(sd.day)![turnoOf(toMinutes(m.start))].push({ sd, cont });
-      } else if (sd.day != null && sd.day <= 5) {
-        // forzada a un día sin comisión: la ubicamos en la noche por defecto.
-        cols.get(sd.day)!.n.push({ sd, cont });
+        cols.get(sd.day)![sd.turno ?? turnoOf(toMinutes(m.start))].push({ sd, cont });
+      } else if (sd.day != null && sd.day >= 0 && sd.day <= 5) {
+        // forzada a un día sin comisión: la dejamos en el turno donde la soltaste.
+        cols.get(sd.day)![sd.turno ?? 'n'].push({ sd, cont });
       } else noDay.push({ sd, cont });
     };
     for (const sd of subs) add(sd, false);
