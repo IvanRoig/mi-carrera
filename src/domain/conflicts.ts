@@ -156,15 +156,24 @@ export function offeredCodes(offer: OfferData): Set<string> {
  * ¿Se puede elegir una comisión para cada materia del conjunto sin que ninguna
  * choque? (asignación factible). Devuelve el mapa código→comisión si se puede,
  * o null si es imposible. Backtracking simple (pocas materias por cuatri).
+ *
+ * Tiene un presupuesto de pasos (`maxSteps`): en casos reales (≤ ~8 materias) se
+ * resuelve en poquísimos pasos, pero si el conjunto es enorme (p.ej. el modo
+ * sicario que intenta amontonar 20+ materias) el árbol de búsqueda es
+ * exponencial y colgaría la página. Al agotar el presupuesto devuelve null
+ * (tratado como "no entra"), garantizando que nunca se cuelgue.
  */
 export function findConflictFreeAssignment(
   codes: string[],
   offMap: Map<string, Offering>,
+  maxSteps = 2000,
 ): Map<string, Commission> | null {
   const result = new Map<string, Commission>();
+  let steps = 0;
 
   function backtrack(i: number): boolean {
     if (i >= codes.length) return true;
+    if (++steps > maxSteps) return false; // presupuesto agotado: cortamos
     const o = offMap.get(codes[i]);
     // Sin oferta para esta materia: no bloquea (no sabemos su horario).
     if (!o || o.commissions.length === 0) return backtrack(i + 1);
@@ -176,6 +185,7 @@ export function findConflictFreeAssignment(
         result.set(codes[i], c);
         if (backtrack(i + 1)) return true;
         result.delete(codes[i]);
+        if (steps > maxSteps) return false;
       }
     }
     return false;
