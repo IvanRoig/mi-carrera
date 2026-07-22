@@ -31,7 +31,9 @@ function stripAccents(s: string): string {
 export function normalizeModality(raw: string): Modality {
   const s = stripAccents(raw.toLowerCase());
   if (s.includes('semipres')) return 'semipresencial';
-  if (s.includes('sincron')) return 'sincronica';
+  // 'sincr' y 'teams' cubren "Sincrónica Teams" aun si la 'ó' vino mal codificada
+  // (algunos HTML de la intraconsulta vienen en latin1 y rompen la ó → 'sincron' fallaba).
+  if (s.includes('sincr') || s.includes('teams')) return 'sincronica';
   if (s.includes('distan')) return 'distancia';
   if (s.includes('virtual')) return 'virtual';
   if (s.includes('presen')) return 'presencial';
