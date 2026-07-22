@@ -20,8 +20,12 @@ import type { Subject, UserSettings } from './types';
 import type { Graph } from './graph';
 import { computePriorityMetrics, comparePriority, priorityScore } from './priority';
 import { longestDownstreamTerms } from './graph';
-import type { OfferData } from './conflicts';
-import { findConflictFreeAssignment, offeringMap } from './conflicts';
+import type { OfferData, Offering } from './conflicts';
+import {
+  findConflictFreeAssignment,
+  offeringMap,
+  commissionFitsAvailability,
+} from './conflicts';
 
 export type PlannedTerm = {
   index: number;
@@ -77,6 +81,27 @@ export function schedule(input: ScheduleInput): ScheduleResult {
   const difficult = input.difficult ?? new Set<string>();
   const offMap = input.offer ? offeringMap(input.offer) : null;
 
+  // Disponibilidad horaria (día×turno). Solo se aplica al cuatri inmediato,
+  // que es el único con oferta conocida.
+  const availableSlots = settings.restrictAvailability
+    ? new Set(settings.availableSlots)
+    : null;
+  // Oferta del cuatri 0 filtrada por disponibilidad.
+  const offMap0: Map<string, Offering> | null = (() => {
+    if (!offMap) return null;
+    if (!availableSlots) return offMap;
+    const m = new Map<string, Offering>();
+    for (const [code, off] of offMap) {
+      m.set(code, {
+        ...off,
+        commissions: off.commissions.filter((cm) =>
+          commissionFitsAvailability(cm, availableSlots),
+        ),
+      });
+    }
+    return m;
+  })();
+
   const pending = new Set(input.pending);
   const done = new Set(input.done);
   const startByCode = new Map<string, number>();
@@ -131,10 +156,13 @@ export function schedule(input: ScheduleInput): ScheduleResult {
         if (needsNext && diffUsed[t + 1] >= settings.maxDifficultPerTerm) continue;
       }
 
-      // Choques de horario en el cuatri inmediato (si hay oferta).
+      // Cuatri inmediato: respetar disponibilidad horaria y choques (si hay oferta).
       if (t === 0 && offMap && offMap.has(c)) {
+        const fitting = offMap0!.get(c)?.commissions ?? [];
+        // Está ofertada pero ninguna comisión entra en tu disponibilidad → se difiere.
+        if (availableSlots && fitting.length === 0) continue;
         const tentative = [...offeredChosen, c];
-        if (!findConflictFreeAssignment(tentative, offMap)) continue;
+        if (!findConflictFreeAssignment(tentative, offMap0!)) continue;
         offeredChosen.push(c);
       }
 
@@ -155,7 +183,113 @@ export function schedule(input: ScheduleInput): ScheduleResult {
   }
 
   const result = buildResult(graph, termsSubjects, startByCode, finishByCode, settings, difficult);
-  return improve(input, result, cap, difficult);
+  const compacted = improve(input, result, cap, difficult);
+  return balance(input, compacted, cap, difficult);
+}
+
+/**
+ * Balanceo de carga: sin cambiar el makespan, reparte materias entre cuatris
+ * para que no queden algunos con 6 y otros con 2. Solo mueve materias cuya
+ * ventana de precedencia lo permite (típicamente hojas que pueden ir más tarde).
+ */
+function balance(
+  input: ScheduleInput,
+  result: ScheduleResult,
+  cap: number,
+  difficult: Set<string>,
+): ScheduleResult {
+  const { graph, settings } = input;
+  const M = result.makespan;
+  if (M <= 1 || cap === Infinity) return result;
+
+  const startByCode = new Map(result.startByCode);
+  const finishByCode = new Map(result.finishByCode);
+
+  // Ocupación (incluye arrastre de anuales) y cantidad de materias que ARRANCAN.
+  const occ = Array(M).fill(0);
+  const started = Array(M).fill(0);
+  for (const [c, t] of startByCode) {
+    started[t]++;
+    occ[t]++;
+    const s = graph.byCode.get(c)!;
+    if (s.annual && t + 1 < M) occ[t + 1]++;
+  }
+
+  const canMove = (c: string, t2: number): boolean => {
+    const s = graph.byCode.get(c)!;
+    const cur = startByCode.get(c)!;
+    if (t2 === cur || t2 < 0 || t2 >= M) return false;
+    const cal = calendarOf(t2, settings.startYear, settings.startTerm);
+    if ((s.annual || s.startsOnlyFirstSemester) && !cal.isFirstSemester) return false;
+    if (s.annual && t2 + 1 >= M) return false;
+    // No tocar el cuatri inmediato si hay oferta (para no romper choques/disponibilidad).
+    if (input.offer && (t2 === 0 || cur === 0)) return false;
+    if (occ[t2] >= cap) return false;
+    if (s.annual && occ[t2 + 1] >= cap) return false;
+    // Precedencia: correlativas terminadas antes de t2.
+    for (const p of graph.prereqs.get(c) ?? []) {
+      if ((finishByCode.get(p) ?? -1) >= t2) return false;
+    }
+    // Dependientes agendados: deben arrancar después de que c termine.
+    const newFinish = t2 + (s.annual ? 1 : 0);
+    for (const d of graph.dependents.get(c) ?? []) {
+      const ds = startByCode.get(d);
+      if (ds !== undefined && ds <= newFinish) return false;
+    }
+    return true;
+  };
+
+  const doMove = (c: string, t2: number) => {
+    const s = graph.byCode.get(c)!;
+    const cur = startByCode.get(c)!;
+    started[cur]--;
+    occ[cur]--;
+    if (s.annual && cur + 1 < M) occ[cur + 1]--;
+    started[t2]++;
+    occ[t2]++;
+    if (s.annual && t2 + 1 < M) occ[t2 + 1]++;
+    startByCode.set(c, t2);
+    finishByCode.set(c, t2 + (s.annual ? 1 : 0));
+  };
+
+  let guard = 0;
+  while (guard++ < 300) {
+    let hi = 0;
+    let lo = 0;
+    for (let t = 0; t < M; t++) {
+      if (started[t] > started[hi]) hi = t;
+      if (started[t] < started[lo]) lo = t;
+    }
+    if (started[hi] - started[lo] <= 1) break;
+
+    const candidates = [...startByCode.entries()]
+      .filter(([, t]) => t === hi)
+      .map(([c]) => c);
+
+    // Intentar mover a los cuatris menos cargados primero.
+    const targets = [...Array(M).keys()]
+      .filter((t) => started[t] < started[hi] - 1)
+      .sort((a, b) => started[a] - started[b]);
+
+    let moved = false;
+    outer: for (const t2 of targets) {
+      for (const c of candidates) {
+        if (canMove(c, t2)) {
+          doMove(c, t2);
+          moved = true;
+          break outer;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+
+  const termsSubjects: string[][] = [];
+  for (const [c, t] of startByCode) {
+    termsSubjects[t] = termsSubjects[t] ?? [];
+    termsSubjects[t].push(c);
+  }
+  return buildResult(graph, termsSubjects, startByCode, finishByCode, settings, difficult);
 }
 
 function buildResult(

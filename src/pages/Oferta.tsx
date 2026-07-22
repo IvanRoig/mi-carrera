@@ -45,13 +45,20 @@ export function Oferta() {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-4 text-sm">
-        <h3 className="font-semibold">Cómo funciona la oferta</h3>
+        <h3 className="font-semibold">Cómo funciona la oferta (es opcional)</h3>
         <p className="mt-1 text-slate-600 dark:text-slate-400">
-          Entrá a la <strong>intraconsulta</strong> del campus, abrí la pantalla
-          de <strong>oferta de comisiones</strong> y guardá esa página como
-          archivo <strong>HTML</strong> (Ctrl+S → “Página web, solo HTML”).
-          Subila acá y la app extrae automáticamente días, horarios y modalidades
-          para detectar choques y mejorar el simulador.
+          <strong>No hace falta cargar nada acá para usar la app.</strong> El
+          simulador ya planifica por correlativas y cantidad de materias. La oferta
+          es opcional: si la cargás, el simulador conoce los{' '}
+          <strong>días/horarios reales</strong>, detecta choques y respeta tu
+          disponibilidad horaria. No hay ninguna oferta “de base”: la que subas es
+          la que se usa (podés reemplazarla cuando quieras).
+        </p>
+        <p className="mt-2 text-slate-600 dark:text-slate-400">
+          Para conseguirla: entrá a la <strong>intraconsulta</strong> del campus,
+          abrí la pantalla de <strong>oferta de comisiones</strong> y guardá esa
+          página como archivo <strong>HTML</strong> (Ctrl+S → “Página web, solo
+          HTML”). Subila con el botón de abajo.
         </p>
         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
           Sobre las <strong>electivas</strong>: se ofrecen con nombres propios

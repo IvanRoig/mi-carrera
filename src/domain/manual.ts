@@ -6,7 +6,11 @@ import type { Graph } from './graph';
 import type { UserSettings } from './types';
 import { calendarOf } from './scheduler';
 import type { Commission, OfferData } from './conflicts';
-import { commissionsOverlap, offeringMap } from './conflicts';
+import {
+  commissionsOverlap,
+  commissionFitsAvailability,
+  offeringMap,
+} from './conflicts';
 
 export type ManualTermInput = { id: string; subjects: string[] };
 
@@ -17,6 +21,10 @@ export type SubjectDiag = {
   calendarError?: string;
   commission?: Commission;
   hasConflict?: boolean;
+  /** En el 1er cuatri: la materia no figura en la oferta actual. */
+  notOffered?: boolean;
+  /** En el 1er cuatri: está ofertada pero no en un día/horario que puedas. */
+  notAvailable?: boolean;
 };
 
 export type TermDiag = {
@@ -52,6 +60,9 @@ export function validateManualPlan(
 ): ManualPlanDiag {
   const offMap = offer ? offeringMap(offer) : null;
   const diff = difficult ?? new Set<string>();
+  const availableSlots = settings.restrictAvailability
+    ? new Set(settings.availableSlots)
+    : null;
 
   const finishByCode = new Map<string, number>();
   for (const c of done) finishByCode.set(c, -1);
@@ -89,6 +100,8 @@ export function validateManualPlan(
 
       let commission: Commission | undefined;
       let hasConflict = false;
+      let notOffered = false;
+      let notAvailable = false;
       if (offMap) {
         const o = offMap.get(code);
         if (o && o.commissions.length) {
@@ -101,12 +114,31 @@ export function validateManualPlan(
             conflictCount++;
           }
           assigned.push({ code, commission });
+          // Solo en el 1er cuatri chequeamos contra la oferta cargada.
+          if (i === 0 && availableSlots) {
+            const fits = o.commissions.some((c) =>
+              commissionFitsAvailability(c, availableSlots),
+            );
+            if (!fits) notAvailable = true;
+          }
+        } else if (i === 0 && !s.isElective) {
+          // 1er cuatri: la materia no está en la oferta actual.
+          notOffered = true;
         }
       }
 
       const ok = missing.length === 0 && !calendarError && !hasConflict;
       if (!ok) valid = false;
-      diags.push({ code, ok, missingPrereqs: missing, calendarError, commission, hasConflict });
+      diags.push({
+        code,
+        ok,
+        missingPrereqs: missing,
+        calendarError,
+        commission,
+        hasConflict,
+        notOffered,
+        notAvailable,
+      });
     }
 
     const count = t.subjects.length;

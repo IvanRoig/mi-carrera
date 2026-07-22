@@ -122,6 +122,22 @@ describe('scheduler — materia anual', () => {
   });
 });
 
+describe('scheduler — balanceo de carga', () => {
+  it('reparte la carga sin aumentar el makespan (no deja un cuatri casi vacío)', () => {
+    const subs = ['A', 'B', 'C', 'D', 'E', 'F'].map((c) => makeSubject(c));
+    const g = buildGraph(subs);
+    const r = run({
+      graph: g,
+      pending: new Set(['A', 'B', 'C', 'D', 'E', 'F']),
+      settings: settings({ maxPerTerm: 4 }),
+    });
+    // 6 materias, tope 4 → 2 cuatris. Balanceado debería ser 3 y 3.
+    expect(r.makespan).toBe(2);
+    const sizes = r.terms.map((t) => t.subjects.length);
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('scheduler — makespan válido', () => {
   it('el cronograma cubre todas las pendientes exactamente una vez', () => {
     const g = buildGraph([

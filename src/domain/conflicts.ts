@@ -65,6 +65,34 @@ export function isNightCommission(c: Commission): boolean {
   return c.meetings.some((m) => toMinutes(m.start) >= 18 * 60);
 }
 
+/** Turno de un horario de inicio: m=mañana (<13), t=tarde (13-18), n=noche (≥18). */
+export function turnoOf(startMinutes: number): 'm' | 't' | 'n' {
+  if (startMinutes < 13 * 60) return 'm';
+  if (startMinutes < 18 * 60) return 't';
+  return 'n';
+}
+
+export const TURNO_LABEL: Record<'m' | 't' | 'n', string> = {
+  m: 'mañana',
+  t: 'tarde',
+  n: 'noche',
+};
+
+/**
+ * ¿La comisión entra en la disponibilidad del usuario? (todos sus encuentros
+ * caen en slots día-turno disponibles). Las de modalidad a distancia / sin
+ * horario fijo siempre entran.
+ */
+export function commissionFitsAvailability(
+  c: Commission,
+  availableSlots: Set<string>,
+): boolean {
+  if (c.modality === 'distancia' || c.meetings.length === 0) return true;
+  return c.meetings.every((m) =>
+    availableSlots.has(`${m.day}-${turnoOf(toMinutes(m.start))}`),
+  );
+}
+
 /** ¿Dos encuentros se solapan (mismo día y horario)? */
 export function meetingsOverlap(a: Meeting, b: Meeting): boolean {
   if (a.day !== b.day) return false;
