@@ -9,7 +9,7 @@ import { AvailabilityGrid } from '@/components/AvailabilityGrid';
 import { Badge } from '@/components/Badge';
 import { formatGraduation, termLabel, trackColor } from '@/lib/ui';
 import { validateManualPlan } from '@/domain/manual';
-import { schedule, type ScheduleResult } from '@/domain/scheduler';
+import { schedule, calendarOf, type ScheduleResult } from '@/domain/scheduler';
 import { TALLER_CODE } from '@/domain/types';
 import {
   offeringMap,
@@ -38,6 +38,13 @@ function yearsLabel(years: number): string {
 
 export function Simulador() {
   const [mode, setMode] = useState<'auto' | 'sicario' | 'manual'>('auto');
+  const setManualTerms = useStore((s) => s.setManualTerms);
+
+  // Pasa el plan automático al modo manual para editarlo a mano.
+  const editInManual = (terms: { subjects: string[] }[]) => {
+    setManualTerms(terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
+    setMode('manual');
+  };
 
   return (
     <div className="space-y-6">
@@ -56,7 +63,11 @@ export function Simulador() {
       <SettingsBar hideCapacity={mode === 'sicario'} />
       <AvailabilityGrid />
 
-      {mode === 'manual' ? <ManualView /> : <AutoView sicario={mode === 'sicario'} />}
+      {mode === 'manual' ? (
+        <ManualView />
+      ) : (
+        <AutoView sicario={mode === 'sicario'} onEditManual={editInManual} />
+      )}
     </div>
   );
 }
@@ -86,7 +97,13 @@ function ModeButton({
 
 /* ---------------- Vista automática ---------------- */
 
-function AutoView({ sicario }: { sicario: boolean }) {
+function AutoView({
+  sicario,
+  onEditManual,
+}: {
+  sicario: boolean;
+  onEditManual: (terms: { subjects: string[] }[]) => void;
+}) {
   const d = useDerived();
   const settings = useStore((s) => s.user.settings);
   const offer = useStore((s) => s.offer);
@@ -126,6 +143,29 @@ function AutoView({ sicario }: { sicario: boolean }) {
         </p>
       )}
       <ResultBanner s={s} />
+
+      {/* Pasar a manual para editar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          ¿Querés cambiar algo? (mover una materia a otro cuatri, sacar o adelantar
+          alguna). Pasá este plan al <strong>modo manual</strong> y editalo libre:
+          se siguen validando correlativas, cupos de horario y choques.
+        </p>
+        <button
+          onClick={() => onEditManual(s.terms)}
+          className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          ✏️ Editar en manual
+        </button>
+      </div>
+
+      {!offer && (
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+          💡 Cargá la oferta (solapa <strong>Oferta</strong>) para ver el día,
+          horario y modalidad de cada materia, y para que respete tu disponibilidad.
+        </p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {s.terms.map((t) => {
           // Materias anuales que arrancaron el cuatri anterior y siguen acá.
@@ -292,6 +332,7 @@ function ManualView() {
   const offer = useStore((s) => s.offer);
   const settings = useStore((s) => s.user.settings);
   const difficultArr = useStore((s) => s.user.difficult);
+  const [dragging, setDragging] = useState<string | null>(null);
 
   const placed = new Set(manualTerms.flatMap((t) => t.subjects));
   const pool = [...d.pending].filter((c) => !placed.has(c));
@@ -306,6 +347,46 @@ function ManualView() {
       d.schedule.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })),
     );
   }
+
+  // Autocompleta los cuatris que faltan, dejando fijos los que armaste a mano.
+  function autocompleteRest() {
+    const preScheduled = new Map<string, number>();
+    manualTerms.forEach((t, i) => t.subjects.forEach((c) => preScheduled.set(c, i)));
+    const remaining = new Set([...d.pending].filter((c) => !preScheduled.has(c)));
+    const res = schedule({
+      graph,
+      pending: remaining,
+      done: d.done,
+      settings,
+      offer,
+      difficult: new Set(difficultArr),
+      preScheduled,
+      firstFreeTerm: manualTerms.length,
+    });
+    setManualTerms(res.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
+  }
+
+  // Al arrastrar una materia: a qué cuatris se puede mover sin romper nada.
+  const validTerm = useMemo(() => {
+    if (!dragging) return null;
+    const s = graph.byCode.get(dragging);
+    const finish = new Map<string, number>();
+    for (const c of d.done) finish.set(c, -1);
+    manualTerms.forEach((t, i) =>
+      t.subjects.forEach((c) => {
+        if (c !== dragging) finish.set(c, i + (graph.byCode.get(c)?.annual ? 1 : 0));
+      }),
+    );
+    const reqs = graph.prereqs.get(dragging) ?? [];
+    return (i: number): boolean => {
+      const cal = calendarOf(i, settings.startYear, settings.startTerm);
+      if ((s?.annual || s?.startsOnlyFirstSemester) && !cal.isFirstSemester) return false;
+      if (!reqs.every((p) => (finish.get(p) ?? Infinity) < i)) return false;
+      const cnt = manualTerms[i].subjects.filter((c) => c !== dragging).length;
+      if (cnt >= settings.maxPerTerm) return false;
+      return true;
+    };
+  }, [dragging, manualTerms, d.done, settings]);
 
   const dragCode = (e: React.DragEvent) => e.dataTransfer.getData('text/plain');
 
@@ -338,6 +419,14 @@ function ManualView() {
             Sembrar desde automático
           </button>
           <button
+            onClick={autocompleteRest}
+            disabled={manualTerms.length === 0}
+            className="rounded-lg border border-brand-500 px-3 py-1.5 text-sm font-medium text-brand-600 hover:bg-brand-500/10 disabled:opacity-40 dark:text-brand-300"
+            title="Deja fijos los cuatris que armaste y completa el resto automáticamente"
+          >
+            Autocompletar el resto
+          </button>
+          <button
             onClick={addManualTerm}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium dark:border-slate-700"
           >
@@ -345,6 +434,14 @@ function ManualView() {
           </button>
         </div>
       </div>
+
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        💡 Arrastrá materias entre cuatris. Mientras arrastrás, los cuatris se
+        pintan de <span className="text-emerald-500">verde</span> (podés soltarla
+        ahí) o <span className="text-rose-500">rojo</span> (rompería correlativas,
+        calendario o el cupo). También podés armar los primeros cuatris a mano y
+        tocar <strong>“Autocompletar el resto”</strong>.
+      </p>
 
       <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
         <div
@@ -358,7 +455,13 @@ function ManualView() {
           <h4 className="mb-2 text-sm font-semibold">Sin ubicar ({pool.length})</h4>
           <div className="space-y-1.5">
             {pool.map((code) => (
-              <DraggableSubject key={code} code={code} termOptions={manualTerms} />
+              <DraggableSubject
+                key={code}
+                code={code}
+                termOptions={manualTerms}
+                onDragStartCode={setDragging}
+                onDragEndCode={() => setDragging(null)}
+              />
             ))}
             {pool.length === 0 && (
               <p className="py-4 text-center text-xs text-slate-400">Todas ubicadas 🎉</p>
@@ -367,10 +470,18 @@ function ManualView() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {diag.terms.map((t) => (
+          {diag.terms.map((t, idx) => {
+            const ok = validTerm ? validTerm(idx) : null;
+            const ring =
+              ok === true
+                ? 'ring-2 ring-emerald-400'
+                : ok === false
+                  ? 'ring-2 ring-rose-400 opacity-60'
+                  : '';
+            return (
             <div
               key={t.id}
-              className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+              className={`rounded-xl border border-slate-200 bg-white p-3 transition dark:border-slate-800 dark:bg-slate-900 ${ring}`}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
@@ -407,7 +518,11 @@ function ManualView() {
                   <div
                     key={sd.code}
                     draggable
-                    onDragStart={(e) => e.dataTransfer.setData('text/plain', sd.code)}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', sd.code);
+                      setDragging(sd.code);
+                    }}
+                    onDragEnd={() => setDragging(null)}
                     className={`cursor-grab rounded-lg border px-2.5 py-1.5 text-sm active:cursor-grabbing ${
                       sd.ok
                         ? 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50'
@@ -446,7 +561,8 @@ function ManualView() {
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
           {diag.terms.length === 0 && (
             <div className="col-span-full rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
               Empezá con “Sembrar desde automático” o “+ Agregar cuatri” y arrastrá materias.
@@ -461,9 +577,13 @@ function ManualView() {
 function DraggableSubject({
   code,
   termOptions,
+  onDragStartCode,
+  onDragEndCode,
 }: {
   code: string;
   termOptions: { id: string; subjects: string[] }[];
+  onDragStartCode?: (code: string) => void;
+  onDragEndCode?: () => void;
 }) {
   const name = useSubjectName();
   const moveToManualTerm = useStore((s) => s.moveToManualTerm);
@@ -471,7 +591,11 @@ function DraggableSubject({
   return (
     <div
       draggable
-      onDragStart={(e) => e.dataTransfer.setData('text/plain', code)}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', code);
+        onDragStartCode?.(code);
+      }}
+      onDragEnd={() => onDragEndCode?.()}
       className="cursor-grab rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm active:cursor-grabbing dark:border-slate-700 dark:bg-slate-800"
       style={{ borderLeft: `3px solid ${trackColor(s.track)}` }}
     >

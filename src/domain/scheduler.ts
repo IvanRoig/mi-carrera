@@ -1,19 +1,19 @@
 /**
- * scheduler.ts — Simulador que minimiza el makespan (cuatrimestres hasta recibirse).
+ * scheduler.ts — Simulador de cuatrimestres.
  *
- * Problema de scheduling con precedencias y capacidad (minimizar makespan),
- * NP-hard. Heurístico: LIST SCHEDULING GREEDY por ruta crítica (medida en
- * cuatrimestres) + una pasada de compactación.
+ * Objetivo: recibirte en la MENOR cantidad de cuatrimestres, y — con esa meta
+ * asegurada — hacer la MENOR cantidad de materias por cuatri de forma pareja.
  *
- * Restricciones:
- *  - Precedencia: una materia solo entra cuando sus correlativas terminaron.
- *  - Capacidad: hasta `maxPerTerm` materias por cuatri (modo sicario: sin tope,
- *    solo limitado por correlativas y por choques de horario si hay oferta).
- *  - `annual`: ocupa este cuatri y el siguiente; solo arranca en 1er cuatri.
- *  - `startsOnlyFirstSemester`: solo arranca en un 1er cuatrimestre (Proyecto Final).
- *  - Choques de horario: en el cuatri inmediato, si hay oferta cargada, no se
- *    ubican dos materias que no puedan tener comisiones sin solaparse.
- *  - (Opcional) tope de materias "difíciles" por cuatri.
+ * Cómo:
+ *  1. `runSchedule(cap)`: list scheduling greedy por ruta crítica + compactación
+ *     + balanceo, con un tope de `cap` materias por cuatri.
+ *  2. `schedule()`: busca el MENOR `cap` que sigue logrando el makespan mínimo.
+ *     Así, si podés recibirte igual de rápido haciendo 5 por cuatri en vez de 6,
+ *     arma cuatris de 5 (más parejo, menos exigido), sin atrasar el egreso.
+ *
+ * Restricciones: precedencia, capacidad, `annual` (ocupa 2 cuatris, solo arranca
+ * en 1er cuatri), `startsOnlyFirstSemester` (Proyecto Final), choques de horario y
+ * disponibilidad en el cuatri inmediato (con oferta), y tope opcional de difíciles.
  */
 
 import type { Subject, UserSettings } from './types';
@@ -40,7 +40,6 @@ export type PlannedTerm = {
 export type ScheduleResult = {
   terms: PlannedTerm[];
   makespan: number;
-  /** Años equivalentes (cada año = 2 cuatrimestres). */
   years: number;
   criticalChain: string[];
   startByCode: Map<string, number>;
@@ -53,14 +52,16 @@ export type ScheduleInput = {
   pending: Set<string>;
   done: Set<string>;
   settings: UserSettings;
-  /** Oferta del cuatri inmediato (para choques de horario). */
   offer?: OfferData | null;
-  /** Materias marcadas como difíciles. */
   difficult?: Set<string>;
   scarcity?: Map<string, number>;
   maxTerms?: number;
-  /** Modo sicario: sin tope de materias por cuatri. */
+  /** Modo sicario: sin tope de materias por cuatri (lo antes posible). */
   sicario?: boolean;
+  /** Materias fijas (prefijo armado a mano): código → índice de cuatri. */
+  preScheduled?: Map<string, number>;
+  /** Desde qué cuatri empezar a autocompletar (después del prefijo manual). */
+  firstFreeTerm?: number;
 };
 
 export function calendarOf(
@@ -74,19 +75,41 @@ export function calendarOf(
   return { year, term, isFirstSemester: term === 1 };
 }
 
+/**
+ * Programa balanceado: busca el menor tope por cuatri que igual logra el makespan
+ * mínimo. Resultado: carga pareja sin atrasar el egreso.
+ */
 export function schedule(input: ScheduleInput): ScheduleResult {
+  const effectiveMax = input.sicario
+    ? Math.max(1, input.pending.size)
+    : Math.max(1, input.settings.maxPerTerm);
+
+  if (input.pending.size === 0) return runSchedule(input, effectiveMax);
+
+  const minMakespan = runSchedule(input, effectiveMax).makespan;
+
+  // makespan es no-creciente en el tope, así que hay un umbral: el menor tope que
+  // mantiene el makespan mínimo. Búsqueda binaria.
+  let lo = 1;
+  let hi = effectiveMax;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (runSchedule(input, mid).makespan === minMakespan) hi = mid;
+    else lo = mid + 1;
+  }
+  return runSchedule(input, lo);
+}
+
+/** Corre el greedy con un tope fijo `cap` de materias por cuatri. */
+function runSchedule(input: ScheduleInput, cap: number): ScheduleResult {
   const { graph, settings } = input;
   const maxTerms = input.maxTerms ?? 60;
-  const cap = input.sicario ? Infinity : Math.max(1, settings.maxPerTerm);
   const difficult = input.difficult ?? new Set<string>();
   const offMap = input.offer ? offeringMap(input.offer) : null;
 
-  // Disponibilidad horaria (día×turno). Solo se aplica al cuatri inmediato,
-  // que es el único con oferta conocida.
   const availableSlots = settings.restrictAvailability
     ? new Set(settings.availableSlots)
     : null;
-  // Oferta del cuatri 0 filtrada por disponibilidad.
   const offMap0: Map<string, Offering> | null = (() => {
     if (!offMap) return null;
     if (!availableSlots) return offMap;
@@ -120,12 +143,33 @@ export function schedule(input: ScheduleInput): ScheduleResult {
   const termsSubjects: string[][] = [];
   const sub = (c: string) => graph.byCode.get(c) as Subject;
 
-  let t = 0;
+  // Prefijo fijo (armado a mano): ocupa cuatris y no se mueve.
+  const locked = new Set<string>();
+  if (input.preScheduled) {
+    for (const [c, tt] of input.preScheduled) {
+      const s = sub(c);
+      if (!s) continue;
+      ensureTerm(tt + (s.annual ? 1 : 0));
+      startByCode.set(c, tt);
+      finishByCode.set(c, tt + (s.annual ? 1 : 0));
+      used[tt]++;
+      if (s.annual) used[tt + 1]++;
+      if (difficult.has(c)) {
+        diffUsed[tt]++;
+        if (s.annual) diffUsed[tt + 1]++;
+      }
+      termsSubjects[tt] = termsSubjects[tt] ?? [];
+      termsSubjects[tt].push(c);
+      pending.delete(c);
+      locked.add(c);
+    }
+  }
+
+  let t = input.firstFreeTerm ?? 0;
   while (pending.size > 0 && t < maxTerms) {
     ensureTerm(t);
     termsSubjects[t] = termsSubjects[t] ?? [];
     const cal = calendarOf(t, settings.startYear, settings.startTerm);
-
     const metrics = computePriorityMetrics(graph, pending, input.scarcity);
 
     const eligible: string[] = [];
@@ -137,36 +181,30 @@ export function schedule(input: ScheduleInput): ScheduleResult {
     }
     eligible.sort((a, b) => comparePriority(a, b, metrics));
 
-    // Materias ofertadas ya elegidas en este cuatri (para chequear choques).
     const offeredChosen: string[] = [];
-
     for (const c of eligible) {
       const s = sub(c);
       const needsNext = s.annual;
       if (needsNext) ensureTerm(t + 1);
 
-      // Capacidad.
       if (used[t] >= cap) continue;
       if (needsNext && used[t + 1] >= cap) continue;
 
-      // Tope de difíciles (opcional).
       const isDiff = settings.limitDifficult && difficult.has(c);
       if (isDiff) {
         if (diffUsed[t] >= settings.maxDifficultPerTerm) continue;
         if (needsNext && diffUsed[t + 1] >= settings.maxDifficultPerTerm) continue;
       }
 
-      // Cuatri inmediato: respetar disponibilidad horaria y choques (si hay oferta).
+      // Cuatri inmediato (índice 0): disponibilidad + choques.
       if (t === 0 && offMap && offMap.has(c)) {
         const fitting = offMap0!.get(c)?.commissions ?? [];
-        // Está ofertada pero ninguna comisión entra en tu disponibilidad → se difiere.
         if (availableSlots && fitting.length === 0) continue;
         const tentative = [...offeredChosen, c];
         if (!findConflictFreeAssignment(tentative, offMap0!)) continue;
         offeredChosen.push(c);
       }
 
-      // Ubicar.
       used[t]++;
       if (needsNext) used[t + 1]++;
       if (isDiff) {
@@ -178,118 +216,12 @@ export function schedule(input: ScheduleInput): ScheduleResult {
       termsSubjects[t].push(c);
       pending.delete(c);
     }
-
     t++;
   }
 
   const result = buildResult(graph, termsSubjects, startByCode, finishByCode, settings, difficult);
-  const compacted = improve(input, result, cap, difficult);
-  return balance(input, compacted, cap, difficult);
-}
-
-/**
- * Balanceo de carga: sin cambiar el makespan, reparte materias entre cuatris
- * para que no queden algunos con 6 y otros con 2. Solo mueve materias cuya
- * ventana de precedencia lo permite (típicamente hojas que pueden ir más tarde).
- */
-function balance(
-  input: ScheduleInput,
-  result: ScheduleResult,
-  cap: number,
-  difficult: Set<string>,
-): ScheduleResult {
-  const { graph, settings } = input;
-  const M = result.makespan;
-  if (M <= 1 || cap === Infinity) return result;
-
-  const startByCode = new Map(result.startByCode);
-  const finishByCode = new Map(result.finishByCode);
-
-  // Ocupación (incluye arrastre de anuales) y cantidad de materias que ARRANCAN.
-  const occ = Array(M).fill(0);
-  const started = Array(M).fill(0);
-  for (const [c, t] of startByCode) {
-    started[t]++;
-    occ[t]++;
-    const s = graph.byCode.get(c)!;
-    if (s.annual && t + 1 < M) occ[t + 1]++;
-  }
-
-  const canMove = (c: string, t2: number): boolean => {
-    const s = graph.byCode.get(c)!;
-    const cur = startByCode.get(c)!;
-    if (t2 === cur || t2 < 0 || t2 >= M) return false;
-    const cal = calendarOf(t2, settings.startYear, settings.startTerm);
-    if ((s.annual || s.startsOnlyFirstSemester) && !cal.isFirstSemester) return false;
-    if (s.annual && t2 + 1 >= M) return false;
-    // No tocar el cuatri inmediato si hay oferta (para no romper choques/disponibilidad).
-    if (input.offer && (t2 === 0 || cur === 0)) return false;
-    if (occ[t2] >= cap) return false;
-    if (s.annual && occ[t2 + 1] >= cap) return false;
-    // Precedencia: correlativas terminadas antes de t2.
-    for (const p of graph.prereqs.get(c) ?? []) {
-      if ((finishByCode.get(p) ?? -1) >= t2) return false;
-    }
-    // Dependientes agendados: deben arrancar después de que c termine.
-    const newFinish = t2 + (s.annual ? 1 : 0);
-    for (const d of graph.dependents.get(c) ?? []) {
-      const ds = startByCode.get(d);
-      if (ds !== undefined && ds <= newFinish) return false;
-    }
-    return true;
-  };
-
-  const doMove = (c: string, t2: number) => {
-    const s = graph.byCode.get(c)!;
-    const cur = startByCode.get(c)!;
-    started[cur]--;
-    occ[cur]--;
-    if (s.annual && cur + 1 < M) occ[cur + 1]--;
-    started[t2]++;
-    occ[t2]++;
-    if (s.annual && t2 + 1 < M) occ[t2 + 1]++;
-    startByCode.set(c, t2);
-    finishByCode.set(c, t2 + (s.annual ? 1 : 0));
-  };
-
-  let guard = 0;
-  while (guard++ < 300) {
-    let hi = 0;
-    let lo = 0;
-    for (let t = 0; t < M; t++) {
-      if (started[t] > started[hi]) hi = t;
-      if (started[t] < started[lo]) lo = t;
-    }
-    if (started[hi] - started[lo] <= 1) break;
-
-    const candidates = [...startByCode.entries()]
-      .filter(([, t]) => t === hi)
-      .map(([c]) => c);
-
-    // Intentar mover a los cuatris menos cargados primero.
-    const targets = [...Array(M).keys()]
-      .filter((t) => started[t] < started[hi] - 1)
-      .sort((a, b) => started[a] - started[b]);
-
-    let moved = false;
-    outer: for (const t2 of targets) {
-      for (const c of candidates) {
-        if (canMove(c, t2)) {
-          doMove(c, t2);
-          moved = true;
-          break outer;
-        }
-      }
-    }
-    if (!moved) break;
-  }
-
-  const termsSubjects: string[][] = [];
-  for (const [c, t] of startByCode) {
-    termsSubjects[t] = termsSubjects[t] ?? [];
-    termsSubjects[t].push(c);
-  }
-  return buildResult(graph, termsSubjects, startByCode, finishByCode, settings, difficult);
+  const compacted = improve(input, result, cap, difficult, locked);
+  return balance(input, compacted, cap, difficult, locked);
 }
 
 function buildResult(
@@ -326,11 +258,7 @@ function buildResult(
   }
 
   const lastCal = calendarOf(Math.max(0, makespan - 1), settings.startYear, settings.startTerm);
-  // Egreso = fin del último cuatrimestre (1er cuatri ≈ julio, 2do ≈ diciembre).
-  const graduation = {
-    year: lastCal.year,
-    month: lastCal.term === 1 ? 7 : 12,
-  };
+  const graduation = { year: lastCal.year, month: lastCal.term === 1 ? 7 : 12 };
 
   const pending = new Set([...startByCode.keys()]);
   const criticalChain = extractCriticalChain(graph, pending);
@@ -352,6 +280,7 @@ function improve(
   result: ScheduleResult,
   cap: number,
   difficult: Set<string>,
+  locked: Set<string>,
 ): ScheduleResult {
   const { graph, settings } = input;
   let current = result;
@@ -372,7 +301,7 @@ function improve(
 
     const lastTerm = makespan - 1;
     const lastSubjects = [...startByCode.entries()]
-      .filter(([, tt]) => tt === lastTerm)
+      .filter(([c, tt]) => tt === lastTerm && !locked.has(c))
       .map(([c]) => c);
 
     for (const c of lastSubjects) {
@@ -380,7 +309,6 @@ function improve(
       const reqs = graph.prereqs.get(c) ?? [];
       let earliest = 0;
       for (const p of reqs) earliest = Math.max(earliest, (finishByCode.get(p) ?? -1) + 1);
-      // No mover al cuatri inmediato si hay oferta (evita meter choques).
       const minTarget = input.offer ? Math.max(earliest, 1) : earliest;
 
       for (let t = minTarget; t < lastTerm; t++) {
@@ -408,6 +336,99 @@ function improve(
   }
 
   return current;
+}
+
+/**
+ * Balanceo: sin cambiar el makespan, empareja la carga llenando los cuatris más
+ * flojos con materias de los más cargados (respetando precedencia y calendario).
+ */
+function balance(
+  input: ScheduleInput,
+  result: ScheduleResult,
+  cap: number,
+  difficult: Set<string>,
+  locked: Set<string>,
+): ScheduleResult {
+  const { graph, settings } = input;
+  const M = result.makespan;
+  if (M <= 1 || cap === Infinity) return result;
+
+  const startByCode = new Map(result.startByCode);
+  const finishByCode = new Map(result.finishByCode);
+
+  const occ = Array(M).fill(0);
+  const started = Array(M).fill(0);
+  for (const [c, t] of startByCode) {
+    started[t]++;
+    occ[t]++;
+    const s = graph.byCode.get(c)!;
+    if (s.annual && t + 1 < M) occ[t + 1]++;
+  }
+
+  const canMove = (c: string, t2: number): boolean => {
+    if (locked.has(c)) return false;
+    const s = graph.byCode.get(c)!;
+    const cur = startByCode.get(c)!;
+    if (t2 === cur || t2 < 0 || t2 >= M) return false;
+    const cal = calendarOf(t2, settings.startYear, settings.startTerm);
+    if ((s.annual || s.startsOnlyFirstSemester) && !cal.isFirstSemester) return false;
+    if (s.annual && t2 + 1 >= M) return false;
+    // No tocar el cuatri inmediato si hay oferta (para no romper choques/disponibilidad).
+    if (input.offer && (t2 === 0 || cur === 0)) return false;
+    if (occ[t2] >= cap) return false;
+    if (s.annual && occ[t2 + 1] >= cap) return false;
+    for (const p of graph.prereqs.get(c) ?? []) {
+      if ((finishByCode.get(p) ?? -1) >= t2) return false;
+    }
+    const newFinish = t2 + (s.annual ? 1 : 0);
+    for (const d of graph.dependents.get(c) ?? []) {
+      const ds = startByCode.get(d);
+      if (ds !== undefined && ds <= newFinish) return false;
+    }
+    return true;
+  };
+
+  const doMove = (c: string, t2: number) => {
+    const s = graph.byCode.get(c)!;
+    const cur = startByCode.get(c)!;
+    started[cur]--;
+    occ[cur]--;
+    if (s.annual && cur + 1 < M) occ[cur + 1]--;
+    started[t2]++;
+    occ[t2]++;
+    if (s.annual && t2 + 1 < M) occ[t2 + 1]++;
+    startByCode.set(c, t2);
+    finishByCode.set(c, t2 + (s.annual ? 1 : 0));
+  };
+
+  let guard = 0;
+  while (guard++ < 500) {
+    // Cuatri menos cargado.
+    let lo = 0;
+    for (let t = 1; t < M; t++) if (started[t] < started[lo]) lo = t;
+
+    // Traer una materia desde cualquier cuatri con carga suficientemente mayor.
+    const sources = [...startByCode.entries()]
+      .filter(([, t]) => started[t] > started[lo] + 1)
+      .sort((a, b) => started[b[1]] - started[a[1]]);
+
+    let moved = false;
+    for (const [c] of sources) {
+      if (canMove(c, lo)) {
+        doMove(c, lo);
+        moved = true;
+        break;
+      }
+    }
+    if (!moved) break;
+  }
+
+  const termsSubjects: string[][] = [];
+  for (const [c, t] of startByCode) {
+    termsSubjects[t] = termsSubjects[t] ?? [];
+    termsSubjects[t].push(c);
+  }
+  return buildResult(graph, termsSubjects, startByCode, finishByCode, settings, difficult);
 }
 
 export function extractCriticalChain(graph: Graph, pending: Set<string>): string[] {
