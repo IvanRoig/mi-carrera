@@ -5,13 +5,28 @@ import { graph } from '@/domain/planGraph';
 import { getSubject } from '@/data/plan';
 import { useSubjectName } from '@/lib/subjectName';
 import { SettingsBar } from '@/components/SettingsBar';
+import { AvailabilityGrid } from '@/components/AvailabilityGrid';
 import { Badge } from '@/components/Badge';
 import { formatGraduation, termLabel, trackColor } from '@/lib/ui';
 import { validateManualPlan } from '@/domain/manual';
 import { schedule, type ScheduleResult } from '@/domain/scheduler';
 import { TALLER_CODE } from '@/domain/types';
+import {
+  offeringMap,
+  DAY_SHORT,
+  type Commission,
+  type OfferData,
+} from '@/domain/conflicts';
 
 const PFC = '03671';
+
+/** Texto corto de una comisión: días/horario + modalidad. */
+function fmtCommission(c: Commission): string {
+  const mod = c.modality;
+  if (c.meetings.length === 0) return `a distancia · ${mod}`;
+  const days = c.meetings.map((m) => `${DAY_SHORT[m.day]} ${m.start}–${m.end}`).join(' + ');
+  return `${days} · ${mod}`;
+}
 
 function yearsLabel(years: number): string {
   if (years <= 0) return '—';
@@ -39,6 +54,7 @@ export function Simulador() {
       </div>
 
       <SettingsBar hideCapacity={mode === 'sicario'} />
+      <AvailabilityGrid />
 
       {mode === 'manual' ? <ManualView /> : <AutoView sicario={mode === 'sicario'} />}
     </div>
@@ -90,6 +106,7 @@ function AutoView({ sicario }: { sicario: boolean }) {
   }, [sicario, d.schedule, d.pending, d.done, settings, offer, difficultArr]);
 
   const chain = new Set(s.criticalChain);
+  const offMap = useMemo(() => (offer ? offeringMap(offer) : null), [offer]);
 
   if (s.terms.length === 0) {
     return (
@@ -123,10 +140,17 @@ function AutoView({ sicario }: { sicario: boolean }) {
               codes={t.subjects}
               continuing={continuing}
               chain={chain}
+              offer={offer}
             />
           );
         })}
       </div>
+      {offMap && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Día/horario/modalidad tomados de la oferta cargada. En cuatris futuros
+          la oferta puede cambiar; sirven como referencia.
+        </p>
+      )}
       <Legenda />
     </div>
   );
@@ -181,14 +205,17 @@ function TermCard({
   codes,
   continuing = [],
   chain,
+  offer,
 }: {
   title: string;
   subtitle: string;
   codes: string[];
   continuing?: string[];
   chain: Set<string>;
+  offer?: OfferData | null;
 }) {
   const name = useSubjectName();
+  const offMap = offer ? offeringMap(offer) : null;
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-2 flex items-baseline justify-between">
@@ -232,6 +259,18 @@ function TermCard({
                 {s.annual && <span className="text-orange-400">· anual</span>}
                 {code === TALLER_CODE && <span className="text-slate-400">· optativa</span>}
               </div>
+              {offMap &&
+                (() => {
+                  const o = offMap.get(code);
+                  if (!o || o.commissions.length === 0) return null;
+                  const first = o.commissions[0];
+                  return (
+                    <div className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+                      🕒 {fmtCommission(first)}
+                      {o.commissions.length > 1 && ` · +${o.commissions.length - 1} comis.`}
+                    </div>
+                  );
+                })()}
             </li>
           );
         })}
@@ -389,6 +428,16 @@ function ManualView() {
                     )}
                     {sd.hasConflict && (
                       <div className="text-[10px] text-rose-500">choque de horario</div>
+                    )}
+                    {sd.notOffered && (
+                      <div className="text-[10px] text-amber-500">
+                        ⚠ no figura en la oferta actual
+                      </div>
+                    )}
+                    {sd.notAvailable && (
+                      <div className="text-[10px] text-amber-500">
+                        ⚠ no hay comisión en tu disponibilidad
+                      </div>
                     )}
                   </div>
                 ))}

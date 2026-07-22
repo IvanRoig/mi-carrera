@@ -56,7 +56,21 @@ export type UserSettings = {
   limitDifficult: boolean;
   /** Máximo de materias difíciles por cuatri si limitDifficult está activo. */
   maxDifficultPerTerm: number;
+  /** Filtrar por disponibilidad horaria (día × turno) usando la oferta. */
+  restrictAvailability: boolean;
+  /** Slots disponibles como "día-turno" (turno: m=mañana, t=tarde, n=noche). */
+  availableSlots: string[];
 };
+
+/** Todos los slots posibles: Lun..Sáb × {mañana, tarde, noche}. */
+export const ALL_SLOTS: string[] = (() => {
+  const out: string[] = [];
+  for (let d = 0; d < 6; d++) for (const turno of ['m', 't', 'n']) out.push(`${d}-${turno}`);
+  return out;
+})();
+
+/** Solo turno noche (Lun..Sáb): el caso más común en la carrera. */
+export const NIGHT_SLOTS: string[] = [0, 1, 2, 3, 4, 5].map((d) => `${d}-n`);
 
 /** Estado propio del usuario (lo que se guarda en localStorage). */
 export type UserState = {
@@ -91,6 +105,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   includeTaller: true,
   limitDifficult: false,
   maxDifficultPerTerm: 2,
+  restrictAvailability: false,
+  availableSlots: NIGHT_SLOTS,
 };
 
 /** Código de la materia optativa Taller de Integración. */
