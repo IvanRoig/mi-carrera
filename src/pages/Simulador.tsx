@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDerived, useSchedule } from '@/lib/useDerived';
 import { useStore } from '@/store/useStore';
 import { graph } from '@/domain/planGraph';
@@ -107,9 +107,8 @@ function MateriaChip({
   time,
   chain,
   continuing,
-  draggable,
-  onDragStart,
-  onDragEnd,
+  onPointerDown,
+  dimmed,
   warn,
   note,
   hideSchedule,
@@ -118,9 +117,8 @@ function MateriaChip({
   time?: string;
   chain?: Set<string>;
   continuing?: boolean;
-  draggable?: boolean;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDragEnd?: () => void;
+  onPointerDown?: (e: React.PointerEvent) => void;
+  dimmed?: boolean;
   warn?: 'conflict' | 'no-oferta' | 'dispo' | 'correlativa' | null;
   note?: string;
   hideSchedule?: boolean;
@@ -137,13 +135,11 @@ function MateriaChip({
         : '';
   return (
     <div
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      onPointerDown={onPointerDown}
       title={name(code)}
       className={`rounded-md border-l-4 bg-slate-50 px-1.5 py-1 text-[11px] leading-tight dark:bg-slate-800/60 ${
-        draggable ? 'cursor-grab active:cursor-grabbing' : ''
-      } ${warnRing} ${s.isElective ? 'border border-dashed border-slate-300 dark:border-slate-600' : ''}`}
+        onPointerDown ? 'cursor-grab touch-none select-none active:cursor-grabbing' : ''
+      } ${dimmed ? 'opacity-30' : ''} ${warnRing} ${s.isElective ? 'border border-dashed border-slate-300 dark:border-slate-600' : ''}`}
       style={{ borderLeftColor: border }}
     >
       <div className="font-medium">
@@ -374,8 +370,15 @@ function ManualView() {
   const offer = useStore((s) => s.offer);
   const settings = useStore((s) => s.user.settings);
   const difficultArr = useStore((s) => s.user.difficult);
-  const [dragging, setDragging] = useState<string | null>(null);
+
+  // Drag propio con pointer events (robusto, funciona en celu y no se cancela).
+  const [drag, setDrag] = useState<{ code: string; x: number; y: number } | null>(null);
   const [hover, setHover] = useState<{ term: number; day: number; turno: 'm' | 't' | 'n' } | null>(null);
+  const dragging = drag?.code ?? null;
+  type HoverTarget =
+    | { kind: 'pool' }
+    | { kind: 'slot'; termId: string; termIdx: number; day: number; turno: 'm' | 't' | 'n' };
+  const hoverRef = useRef<HoverTarget | null>(null);
 
   const offMap = useMemo(() => (offer ? offeringMap(offer) : null), [offer]);
   const availSet = settings.restrictAvailability ? new Set(settings.availableSlots) : null;
@@ -487,16 +490,60 @@ function ManualView() {
     return { kind: 'ok', reason: `Podés cursarla el ${DAY_SHORT[day]} a la ${turnoTxt} 👍` };
   }
 
-  const startDrag = (code: string) => (e: React.DragEvent) => {
-    e.dataTransfer.setData('text/plain', code);
-    setDragging(code);
-  };
-  const endDrag = () => {
-    setDragging(null);
+  const startPointerDrag = (code: string) => (e: React.PointerEvent) => {
+    e.preventDefault();
+    setDrag({ code, x: e.clientX, y: e.clientY });
     setHover(null);
+    hoverRef.current = null;
   };
 
-  const hoverStatus = dragging && hover ? slotStatus(hover.term, hover.day, hover.turno) : null;
+  useEffect(() => {
+    if (!drag) return;
+    const code = drag.code;
+    const locate = (x: number, y: number): HoverTarget | null => {
+      const el = document.elementFromPoint(x, y)?.closest('[data-slot]') as HTMLElement | null;
+      if (!el) return null;
+      if (el.dataset.pool) return { kind: 'pool' };
+      // Es una columna de día: el turno se calcula por la Y del cursor.
+      const rect = el.getBoundingClientRect();
+      const headerH = 18;
+      const bandH = Math.max(1, (rect.height - headerH) / 3);
+      const ti = Math.max(0, Math.min(2, Math.floor((y - rect.top - headerH) / bandH)));
+      const turno = (['m', 't', 'n'] as const)[ti];
+      return {
+        kind: 'slot',
+        termId: el.dataset.term!,
+        termIdx: Number(el.dataset.idx),
+        day: Number(el.dataset.day),
+        turno,
+      };
+    };
+    const onMove = (e: PointerEvent) => {
+      setDrag((dd) => (dd ? { ...dd, x: e.clientX, y: e.clientY } : dd));
+      const t = locate(e.clientX, e.clientY);
+      hoverRef.current = t;
+      setHover(t?.kind === 'slot' ? { term: t.termIdx, day: t.day, turno: t.turno } : null);
+    };
+    const onUp = () => {
+      const t = hoverRef.current;
+      if (t?.kind === 'pool') moveToManualTerm(code, null);
+      else if (t?.kind === 'slot') placeOnSlot(code, t.termId, t.day, t.turno);
+      setDrag(null);
+      setHover(null);
+      hoverRef.current = null;
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag?.code, placeOnSlot, moveToManualTerm]);
+
+  const hoverStatus = drag && hover ? slotStatus(hover.term, hover.day, hover.turno) : null;
   const cellColor = (st: DayStatus) =>
     st.kind === 'ok'
       ? 'bg-emerald-500/20 ring-1 ring-emerald-400'
@@ -569,13 +616,23 @@ function ManualView() {
       </div>
 
       <p className="text-xs text-slate-500 dark:text-slate-400">
-        💡 Arrastrá una materia a un <strong>día</strong> de un cuatri. Se pinta{' '}
-        <span className="text-emerald-500">verde</span> (se puede),{' '}
+        💡 Arrastrá una materia a un <strong>día y turno</strong> de un cuatri. Se
+        pinta <span className="text-emerald-500">verde</span> (se puede),{' '}
         <span className="text-amber-500">ámbar</span> (se puede pero no hay oferta
-        ese día / no entra en tu disponibilidad) o{' '}
+        ese día/turno o no entra en tu disponibilidad) o{' '}
         <span className="text-rose-500">rojo</span> (rompe correlativas o calendario).
-        Igual te deja soltarla; queda señalada.
+        Igual te deja soltarla; queda señalada. Arrastrala a “Sin ubicar” para sacarla.
       </p>
+
+      {/* Fantasma que sigue al cursor mientras arrastrás */}
+      {drag && (
+        <div
+          className="pointer-events-none fixed z-[60] rounded-md border-l-4 border-brand-500 bg-white px-2 py-1 text-[11px] font-medium shadow-xl dark:bg-slate-800"
+          style={{ left: drag.x + 12, top: drag.y + 12 }}
+        >
+          {name(drag.code)}
+        </div>
+      )}
 
       {hoverStatus && (
         <div
@@ -594,24 +651,24 @@ function ManualView() {
 
       <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
         <div
-          className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/50"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            moveToManualTerm(e.dataTransfer.getData('text/plain'), null);
-            endDrag();
-          }}
+          data-slot
+          data-pool="1"
+          className={`rounded-xl border border-dashed p-3 dark:bg-slate-900/50 ${
+            drag ? 'border-brand-400 bg-brand-500/5' : 'border-slate-300 bg-slate-50 dark:border-slate-700'
+          }`}
         >
-          <h4 className="mb-2 text-sm font-semibold">Sin ubicar ({pool.length})</h4>
+          <h4 className="mb-2 text-sm font-semibold">
+            Sin ubicar ({pool.length})
+            {drag && <span className="ml-1 text-[10px] font-normal text-brand-500">soltá acá para sacar</span>}
+          </h4>
           <div className="space-y-1.5">
             {pool.map((code) => (
               <MateriaChip
                 key={code}
                 code={code}
                 chain={new Set(autoSched.criticalChain)}
-                draggable
-                onDragStart={startDrag(code)}
-                onDragEnd={endDrag}
+                onPointerDown={startPointerDrag(code)}
+                dimmed={dragging === code}
                 hideSchedule
               />
             ))}
@@ -622,21 +679,14 @@ function ManualView() {
         <div className="space-y-3">
           {diag.terms.map((t, idx) => {
             const groups = groupTerm(t.subjects, t.continuing);
-            const dropOnSlot = (day: number, turno: 'm' | 't' | 'n') => (e: React.DragEvent) => {
-              e.preventDefault();
-              const code = e.dataTransfer.getData('text/plain');
-              placeOnSlot(code, t.id, day, turno);
-              endDrag();
-            };
             const chipOf = ({ sd, cont }: Item) => (
               <MateriaChip
                 key={sd.code}
                 code={sd.code}
                 time={commTime(sd.commission)}
                 continuing={cont}
-                draggable={!cont}
-                onDragStart={cont ? undefined : startDrag(sd.code)}
-                onDragEnd={cont ? undefined : endDrag}
+                onPointerDown={cont ? undefined : startPointerDrag(sd.code)}
+                dimmed={dragging === sd.code}
                 warn={cont ? null : warnOf(sd)}
                 note={cont ? undefined : noteOf(sd)}
               />
@@ -674,23 +724,31 @@ function ManualView() {
                     // tarde, noche de arriba hacia abajo.
                     const chips = [...col.m, ...col.t, ...col.n];
                     return (
-                      <div key={day} className="relative min-h-[92px] min-w-0">
+                      <div
+                        key={day}
+                        data-slot
+                        data-term={t.id}
+                        data-idx={idx}
+                        data-day={day}
+                        className="relative min-h-[92px] min-w-0"
+                      >
                         <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">
                           {DAY_SHORT[day]}
                         </div>
                         <div className="space-y-1">{chips.map(chipOf)}</div>
-                        {/* Zonas de turno SUPERPUESTAS solo al arrastrar (no tocan los chips). */}
+                        {/* Colores de turno superpuestos (solo visual) mientras arrastrás. */}
                         {dragging && (
-                          <div className="absolute inset-x-0 bottom-0 top-[18px] flex flex-col gap-0.5">
+                          <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[18px] flex flex-col gap-0.5">
                             {TURNOS.map(({ key: turno, label }) => {
                               const st = slotStatus(idx, day, turno);
+                              const isHover =
+                                hover?.term === idx && hover?.day === day && hover?.turno === turno;
                               return (
                                 <div
                                   key={turno}
-                                  onDragEnter={() => setHover({ term: idx, day, turno })}
-                                  onDragOver={(e) => e.preventDefault()}
-                                  onDrop={dropOnSlot(day, turno)}
-                                  className={`flex flex-1 items-start justify-center rounded-md ${cellColor(st)}`}
+                                  className={`flex flex-1 items-start justify-center rounded-md ${cellColor(st)} ${
+                                    isHover ? 'ring-2 ring-white/80' : ''
+                                  }`}
                                 >
                                   <span className="mt-0.5 text-[8px] uppercase tracking-wide text-white/90">
                                     {label}
