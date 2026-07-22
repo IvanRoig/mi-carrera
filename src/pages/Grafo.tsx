@@ -116,7 +116,6 @@ export function Grafo() {
           source: p,
           target: s.code,
           type: 'smoothstep',
-          pathOptions: { borderRadius: 16 },
           markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: onPath ? '#3479f6' : '#64748b' },
           style: {
             stroke: onPath ? '#3479f6' : '#64748b',
