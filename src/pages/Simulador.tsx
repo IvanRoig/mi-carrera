@@ -38,10 +38,16 @@ function yearsLabel(years: number): string {
 
 export function Simulador() {
   const [mode, setMode] = useState<'auto' | 'sicario' | 'manual'>('auto');
-  const setManualTerms = useStore((s) => s.setManualTerms);
+  const seedManual = useStore((s) => s.seedManual);
 
-  const editInManual = (terms: { subjects: string[] }[]) => {
-    setManualTerms(terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
+  // Pasa el plan automático a manual TAL CUAL (mismos días/turnos fijados).
+  const editInManual = (sched: ScheduleResult) => {
+    const { fd, ft } = forcedFromSchedule(sched);
+    seedManual(
+      sched.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })),
+      fd,
+      ft,
+    );
     setMode('manual');
   };
 
@@ -98,6 +104,24 @@ function ModeButton({
 function commTime(c?: Commission): string | undefined {
   if (!c || c.meetings.length === 0) return undefined;
   return [...c.meetings].sort((a, b) => a.start.localeCompare(b.start))[0].start;
+}
+
+/**
+ * Fija el día/turno de cada materia según la comisión que le asignó el
+ * scheduler, para que al pasar a manual queden EXACTAMENTE como en automático
+ * (mismos días/turnos) y estables (no se reordenan solas).
+ */
+function forcedFromSchedule(sched: ScheduleResult) {
+  const fd: Record<string, number> = {};
+  const ft: Record<string, 'm' | 't' | 'n'> = {};
+  for (const [code, comm] of sched.commissionByCode) {
+    const m = [...comm.meetings].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))[0];
+    if (m) {
+      fd[code] = m.day;
+      ft[code] = turnoOf(toMinutes(m.start));
+    }
+  }
+  return { fd, ft };
 }
 
 /* ---------------- Chip de materia ---------------- */
@@ -223,7 +247,7 @@ function AutoView({
   onEditManual,
 }: {
   sicario: boolean;
-  onEditManual: (terms: { subjects: string[] }[]) => void;
+  onEditManual: (sched: ScheduleResult) => void;
 }) {
   const d = useDerived();
   const autoSched = useSchedule();
@@ -271,7 +295,7 @@ function AutoView({
           puede y por qué.
         </p>
         <button
-          onClick={() => onEditManual(s.terms)}
+          onClick={() => onEditManual(s)}
           className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
           ✏️ Editar en manual
@@ -399,21 +423,6 @@ function ManualView() {
       ),
     [d.done, manualTerms, settings, offer, difficultArr, manualForcedDay, manualForcedTurno],
   );
-
-  // Fija el día/turno de cada materia según la comisión que le asignó el
-  // scheduler (así en el manual quedan estables y no se reordenan solas).
-  function forcedFromSchedule(sched: ScheduleResult) {
-    const fd: Record<string, number> = {};
-    const ft: Record<string, 'm' | 't' | 'n'> = {};
-    for (const [code, comm] of sched.commissionByCode) {
-      const m = [...comm.meetings].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))[0];
-      if (m) {
-        fd[code] = m.day;
-        ft[code] = turnoOf(toMinutes(m.start));
-      }
-    }
-    return { fd, ft };
-  }
 
   function seedFromAuto() {
     const { fd, ft } = forcedFromSchedule(autoSched);
