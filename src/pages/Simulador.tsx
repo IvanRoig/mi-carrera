@@ -465,17 +465,20 @@ function ManualView() {
         : 'bg-rose-500/15 ring-1 ring-rose-400';
 
   // Agrupa las materias de un cuatri (con su diagnóstico) por día.
-  function groupTerm(subs: SubjectDiag[]) {
-    const cols = new Map<number, SubjectDiag[]>();
+  type Item = { sd: SubjectDiag; cont: boolean };
+  function groupTerm(subs: SubjectDiag[], continuing: SubjectDiag[]) {
+    const cols = new Map<number, Item[]>();
     for (const dd of DAYS) cols.set(dd, []);
-    const noDay: SubjectDiag[] = [];
-    for (const sd of subs) {
-      if (sd.day != null && sd.day <= 5) cols.get(sd.day)!.push(sd);
-      else noDay.push(sd);
-    }
+    const noDay: Item[] = [];
+    const add = (sd: SubjectDiag, cont: boolean) => {
+      if (sd.day != null && sd.day <= 5) cols.get(sd.day)!.push({ sd, cont });
+      else noDay.push({ sd, cont });
+    };
+    for (const sd of subs) add(sd, false);
+    for (const sd of continuing) add(sd, true);
     // Mañana arriba, noche abajo.
-    const startMin = (sd: SubjectDiag) => {
-      const t = commTime(sd.commission);
+    const startMin = (it: Item) => {
+      const t = commTime(it.sd.commission);
       return t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : 0;
     };
     for (const dd of DAYS) cols.get(dd)!.sort((a, b) => startMin(a) - startMin(b));
@@ -575,7 +578,7 @@ function ManualView() {
 
         <div className="space-y-3">
           {diag.terms.map((t, idx) => {
-            const groups = groupTerm(t.subjects);
+            const groups = groupTerm(t.subjects, t.continuing);
             const dropOnDay = (day: number) => (e: React.DragEvent) => {
               e.preventDefault();
               const code = e.dataTransfer.getData('text/plain');
@@ -614,16 +617,17 @@ function ManualView() {
                       >
                         <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">{DAY_SHORT[day]}</div>
                         <div className="space-y-1">
-                          {groups.cols.get(day)!.map((sd) => (
+                          {groups.cols.get(day)!.map(({ sd, cont }) => (
                             <MateriaChip
                               key={sd.code}
                               code={sd.code}
                               time={commTime(sd.commission)}
-                              draggable
-                              onDragStart={startDrag(sd.code)}
-                              onDragEnd={endDrag}
-                              warn={warnOf(sd)}
-                              note={noteOf(sd)}
+                              continuing={cont}
+                              draggable={!cont}
+                              onDragStart={cont ? undefined : startDrag(sd.code)}
+                              onDragEnd={cont ? undefined : endDrag}
+                              warn={cont ? null : warnOf(sd)}
+                              note={cont ? undefined : noteOf(sd)}
                             />
                           ))}
                         </div>
@@ -638,16 +642,17 @@ function ManualView() {
                   >
                     <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">Distancia</div>
                     <div className="space-y-1">
-                      {groups.noDay.map((sd) => (
+                      {groups.noDay.map(({ sd, cont }) => (
                         <MateriaChip
                           key={sd.code}
                           code={sd.code}
                           time={commTime(sd.commission)}
-                          draggable
-                          onDragStart={startDrag(sd.code)}
-                          onDragEnd={endDrag}
-                          warn={warnOf(sd)}
-                          note={sd.notOffered ? 'no está en la oferta' : noteOf(sd)}
+                          continuing={cont}
+                          draggable={!cont}
+                          onDragStart={cont ? undefined : startDrag(sd.code)}
+                          onDragEnd={cont ? undefined : endDrag}
+                          warn={cont ? null : warnOf(sd)}
+                          note={cont ? undefined : sd.notOffered ? 'no está en la oferta' : noteOf(sd)}
                         />
                       ))}
                     </div>

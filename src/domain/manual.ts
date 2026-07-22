@@ -41,6 +41,8 @@ export type TermDiag = {
   term: 1 | 2;
   isFirstSemester: boolean;
   subjects: SubjectDiag[];
+  /** Materias anuales que arrancaron el cuatri anterior y siguen ocupando este. */
+  continuing: SubjectDiag[];
   count: number;
   difficultCount: number;
   hours: number;
@@ -221,7 +223,14 @@ export function validateManualPlan(
       });
     }
 
-    const count = t.subjects.length;
+    // Anuales que arrancaron el cuatri anterior y siguen ocupando este.
+    const prev = terms[i - 1];
+    const continuing: SubjectDiag[] =
+      prev?.subjects
+        .filter((sd) => graph.byCode.get(sd.code)?.annual)
+        .map((sd) => ({ ...sd, missingPrereqs: [], ok: true })) ?? [];
+
+    const count = t.subjects.length + continuing.length;
     const overCapacity = count > settings.maxPerTerm;
     if (overCapacity) valid = false;
 
@@ -232,6 +241,7 @@ export function validateManualPlan(
       term: cal.term,
       isFirstSemester: cal.isFirstSemester,
       subjects: diags,
+      continuing,
       count,
       difficultCount,
       hours,
