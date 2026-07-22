@@ -1,0 +1,31 @@
+# Dependencias
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.local
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Datos personales — NO se publican (cada usuario carga los suyos en su navegador)
+*.local.json
+*historia_academica*.pdf
+mi-estado-real.json

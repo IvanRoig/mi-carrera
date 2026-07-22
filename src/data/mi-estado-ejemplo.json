@@ -1,0 +1,158 @@
+{
+  "planVersion": "2023-2",
+  "approved": [
+    {
+      "code": "03621",
+      "grade": 8
+    },
+    {
+      "code": "03622",
+      "grade": 4
+    },
+    {
+      "code": "03623",
+      "grade": 7
+    },
+    {
+      "code": "03624",
+      "grade": 7
+    },
+    {
+      "code": "03625",
+      "grade": 9
+    },
+    {
+      "code": "03626",
+      "grade": 7
+    },
+    {
+      "code": "03627",
+      "grade": 7
+    },
+    {
+      "code": "03628",
+      "grade": 8
+    },
+    {
+      "code": "03629",
+      "grade": 7
+    },
+    {
+      "code": "03630",
+      "grade": 5
+    },
+    {
+      "code": "03631",
+      "grade": 9
+    },
+    {
+      "code": "03632",
+      "grade": 9
+    },
+    {
+      "code": "03633",
+      "grade": 9
+    },
+    {
+      "code": "03635",
+      "grade": 7
+    },
+    {
+      "code": "03636",
+      "grade": 4
+    },
+    {
+      "code": "03637",
+      "grade": 8
+    },
+    {
+      "code": "03638",
+      "grade": 9
+    },
+    {
+      "code": "03639",
+      "grade": 7
+    },
+    {
+      "code": "03640",
+      "grade": 7
+    },
+    {
+      "code": "03641",
+      "grade": 8
+    },
+    {
+      "code": "03642",
+      "grade": 8
+    },
+    {
+      "code": "03643",
+      "grade": 8
+    },
+    {
+      "code": "03644",
+      "grade": 9
+    },
+    {
+      "code": "03645",
+      "grade": 7
+    },
+    {
+      "code": "03649",
+      "grade": 7
+    },
+    {
+      "code": "03675",
+      "grade": 7
+    },
+    {
+      "code": "03651",
+      "grade": 6
+    },
+    {
+      "code": "03646",
+      "grade": 8
+    },
+    {
+      "code": "03648",
+      "grade": 8
+    },
+    {
+      "code": "03656",
+      "grade": 8
+    },
+    {
+      "code": "00911",
+      "grade": 10
+    },
+    {
+      "code": "00912",
+      "grade": 9
+    },
+    {
+      "code": "00901",
+      "grade": 9
+    },
+    {
+      "code": "00902",
+      "grade": 10
+    },
+    {
+      "code": "00903",
+      "grade": 8
+    },
+    {
+      "code": "00904",
+      "grade": 10
+    }
+  ],
+  "inProgress": [
+    "03634",
+    "03647",
+    "03650",
+    "03654",
+    "03657",
+    "03676"
+  ],
+  "notes": "Estado de ejemplo. Editá o borrá desde la app."
+}

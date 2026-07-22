@@ -1,0 +1,906 @@
+{
+  "career": "Ingeniería en Informática",
+  "university": "Universidad Nacional de La Matanza (UNLaM)",
+  "planVersion": "2023-2",
+  "totalSubjects": 63,
+  "electiveSlots": 3,
+  "subjects": [
+    {
+      "code": "03621",
+      "name": "Matemática Discreta",
+      "year": 1,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03622",
+      "name": "Análisis Matemático I",
+      "year": 1,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03623",
+      "name": "Programación Inicial",
+      "year": 1,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Programación",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03624",
+      "name": "Introducción a los Sistemas de Información",
+      "year": 1,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03625",
+      "name": "Sistemas de Numeración",
+      "year": 1,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Infraestructura",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03626",
+      "name": "Principios de Calidad de Software",
+      "year": 1,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Calidad y Seguridad de la Información",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "00901",
+      "name": "Inglés Nivel I",
+      "year": 1,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Transversal",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "00911",
+      "name": "Computación Nivel I",
+      "year": 1,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Transversal",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03627",
+      "name": "Álgebra y Geometría Analítica I",
+      "year": 1,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03628",
+      "name": "Física I",
+      "year": 1,
+      "prereqs": [
+        "03622"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03629",
+      "name": "Programación Estructurada Básica",
+      "year": 1,
+      "prereqs": [
+        "03623"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Programación",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03630",
+      "name": "Introducción a la Gestión de Requisitos",
+      "year": 1,
+      "prereqs": [
+        "03624"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03631",
+      "name": "Fundamentos de Sistemas Embebidos",
+      "year": 1,
+      "prereqs": [
+        "03625"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Infraestructura",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03632",
+      "name": "Introducción a los Proyectos Informáticos",
+      "year": 1,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Gestión y Complementarias",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "00902",
+      "name": "Inglés Nivel II",
+      "year": 2,
+      "prereqs": [
+        "00901"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Transversal",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "00912",
+      "name": "Computación Nivel II",
+      "year": 2,
+      "prereqs": [
+        "00911"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Transversal",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03633",
+      "name": "Análisis Matemático II",
+      "year": 2,
+      "prereqs": [
+        "03622"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03634",
+      "name": "Física II",
+      "year": 2,
+      "prereqs": [
+        "03628"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03635",
+      "name": "Tópicos de Programación",
+      "year": 2,
+      "prereqs": [
+        "03621",
+        "03629"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Programación",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03636",
+      "name": "Bases de Datos",
+      "year": 2,
+      "prereqs": [
+        "03621",
+        "03629"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Programación",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03637",
+      "name": "Análisis de Sistemas",
+      "year": 2,
+      "prereqs": [
+        "03630"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03638",
+      "name": "Arquitectura de Computadoras",
+      "year": 2,
+      "prereqs": [
+        "03631"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Infraestructura",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03676",
+      "name": "Responsabilidad Social Universitaria",
+      "year": 2,
+      "prereqs": [
+        "03626"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Gestión y Complementarias",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "00903",
+      "name": "Inglés Nivel III",
+      "year": 2,
+      "prereqs": [
+        "00902"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Transversal",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03639",
+      "name": "Análisis Matemático III",
+      "year": 2,
+      "prereqs": [
+        "03633"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03640",
+      "name": "Algoritmos y Estructuras de Datos",
+      "year": 2,
+      "prereqs": [
+        "03635"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Programación",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03641",
+      "name": "Bases de Datos Aplicadas",
+      "year": 2,
+      "prereqs": [
+        "03636",
+        "03635"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Programación",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03642",
+      "name": "Principios de Diseño de Sistemas",
+      "year": 2,
+      "prereqs": [
+        "03626",
+        "03637"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03643",
+      "name": "Redes de Computadoras",
+      "year": 2,
+      "prereqs": [
+        "03638"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Infraestructura",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03644",
+      "name": "Gestión de las Organizaciones",
+      "year": 2,
+      "prereqs": [
+        "03632"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Gestión y Complementarias",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03680",
+      "name": "Taller de Integración",
+      "year": 2,
+      "prereqs": [
+        "03621",
+        "03623",
+        "03624",
+        "03625",
+        "03626",
+        "03630",
+        "03632",
+        "03635",
+        "03636",
+        "03638"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "00904",
+      "name": "Inglés Nivel IV",
+      "year": 3,
+      "prereqs": [
+        "00903"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Transversal",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03645",
+      "name": "Álgebra y Geometría Analítica II",
+      "year": 3,
+      "prereqs": [
+        "03627"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03646",
+      "name": "Paradigmas de Programación",
+      "year": 3,
+      "prereqs": [
+        "03633",
+        "03640"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Programación",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03647",
+      "name": "Requisitos Avanzados",
+      "year": 3,
+      "prereqs": [
+        "03642"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03648",
+      "name": "Diseño de Software",
+      "year": 3,
+      "prereqs": [
+        "03636",
+        "03642",
+        "03635"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03649",
+      "name": "Sistemas Operativos",
+      "year": 3,
+      "prereqs": [
+        "03638",
+        "03629"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Infraestructura",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03650",
+      "name": "Seguridad de la Información",
+      "year": 3,
+      "prereqs": [
+        "03635",
+        "03638",
+        "03643"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Calidad y Seguridad de la Información",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03675",
+      "name": "Práctica Profesional Supervisada",
+      "year": 3,
+      "prereqs": [
+        "03642",
+        "03636",
+        "03640"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 200,
+      "track": "Gestión y Complementarias",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03651",
+      "name": "Probabilidad y Estadística",
+      "year": 3,
+      "prereqs": [
+        "03621",
+        "03639",
+        "03645"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03652",
+      "name": "Programación Avanzada",
+      "year": 3,
+      "prereqs": [
+        "03646",
+        "03641"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Programación",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03653",
+      "name": "Arquitectura de Sistemas Software",
+      "year": 3,
+      "prereqs": [
+        "03648"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03654",
+      "name": "Virtualización de Hardware",
+      "year": 3,
+      "prereqs": [
+        "03649",
+        "03643"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Infraestructura",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03655",
+      "name": "Auditoría y Legislación",
+      "year": 3,
+      "prereqs": [
+        "03650"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Calidad y Seguridad de la Información",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03656",
+      "name": "Estadística Aplicada",
+      "year": 4,
+      "prereqs": [
+        "03651"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03657",
+      "name": "Autómatas y Gramáticas",
+      "year": 4,
+      "prereqs": [
+        "03646"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Programación",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03658",
+      "name": "Programación Concurrente",
+      "year": 4,
+      "prereqs": [
+        "03646",
+        "03649"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Infraestructura",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03659",
+      "name": "Gestión Aplicada al Desarrollo de Software I",
+      "year": 4,
+      "prereqs": [
+        "03644",
+        "03647",
+        "03648"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03660",
+      "name": "Sistemas Operativos Avanzados",
+      "year": 4,
+      "prereqs": [
+        "03654",
+        "03634"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Infraestructura",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03661",
+      "name": "Gestión de Proyectos",
+      "year": 4,
+      "prereqs": [
+        "03644",
+        "03650",
+        "03651"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Gestión y Complementarias",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03662",
+      "name": "Matemática Aplicada",
+      "year": 4,
+      "prereqs": [
+        "03651"
+      ],
+      "weeklyHours": 6,
+      "totalHours": 96,
+      "track": "Ciencias Básicas",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03663",
+      "name": "Lenguajes y Compiladores",
+      "year": 4,
+      "prereqs": [
+        "03657"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Programación",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03664",
+      "name": "Inteligencia Artificial",
+      "year": 4,
+      "prereqs": [
+        "03646",
+        "03651"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03665",
+      "name": "Gestión Aplicada al Desarrollo de Software II",
+      "year": 4,
+      "prereqs": [
+        "03659",
+        "03653"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03666",
+      "name": "Seguridad Aplicada y Forensia",
+      "year": 4,
+      "prereqs": [
+        "03649",
+        "03652",
+        "03655"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Calidad y Seguridad de la Información",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03667",
+      "name": "Gestión de la Calidad en Procesos de Sistemas",
+      "year": 4,
+      "prereqs": [
+        "03642",
+        "03661"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Calidad y Seguridad de la Información",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03668",
+      "name": "Inteligencia Artificial Aplicada",
+      "year": 5,
+      "prereqs": [
+        "03656",
+        "03664"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03669",
+      "name": "Innovación y Emprendedorismo",
+      "year": 5,
+      "prereqs": [
+        "03661"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Gestión y Complementarias",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03670",
+      "name": "Ciencia de Datos",
+      "year": 5,
+      "prereqs": [
+        "03656",
+        "03664"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Desarrollo de Software",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": false
+    },
+    {
+      "code": "03672",
+      "name": "Electiva I",
+      "year": 5,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Electiva",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": true
+    },
+    {
+      "code": "03673",
+      "name": "Electiva II",
+      "year": 5,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Electiva",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": true
+    },
+    {
+      "code": "03674",
+      "name": "Electiva III",
+      "year": 5,
+      "prereqs": [],
+      "weeklyHours": 4,
+      "totalHours": 64,
+      "track": "Electiva",
+      "annual": false,
+      "startsOnlyFirstSemester": false,
+      "isElective": true
+    },
+    {
+      "code": "03671",
+      "name": "Proyecto Final de Carrera",
+      "year": 5,
+      "prereqs": [
+        "03656",
+        "03659",
+        "03660",
+        "03667"
+      ],
+      "weeklyHours": 4,
+      "totalHours": 128,
+      "track": "Desarrollo de Software",
+      "annual": true,
+      "startsOnlyFirstSemester": true,
+      "isElective": false
+    }
+  ]
+}
