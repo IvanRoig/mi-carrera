@@ -15,6 +15,7 @@ import { Simulador } from '@/pages/Simulador';
 import { Comparador } from '@/pages/Comparador';
 import { Oferta } from '@/pages/Oferta';
 import { AccountButton, RecoveryScreen } from '@/components/Auth';
+import { AuthGate } from '@/components/AuthGate';
 import { useAuth } from '@/store/useAuth';
 
 type TabId = 'tablero' | 'materias' | 'grafo' | 'simulador' | 'comparador' | 'oferta';
@@ -57,6 +58,27 @@ export default function App() {
     applyTheme(next);
   }
 
+  return (
+    <>
+      <RecoveryScreen />
+      <AuthGate>
+        <AppShell tab={tab} setTab={setTab} theme={theme} toggleTheme={toggleTheme} />
+      </AuthGate>
+    </>
+  );
+}
+
+function AppShell({
+  tab,
+  setTab,
+  theme,
+  toggleTheme,
+}: {
+  tab: TabId;
+  setTab: (t: TabId) => void;
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
+}) {
   return (
     <div className="min-h-full pb-16">
       <header className="sticky top-0 z-20 border-b border-slate-200/60 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
@@ -117,8 +139,6 @@ export default function App() {
         {tab === 'comparador' && <Comparador />}
         {tab === 'oferta' && <Oferta />}
       </main>
-
-      <RecoveryScreen />
     </div>
   );
 }

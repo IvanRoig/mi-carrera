@@ -52,7 +52,7 @@ describe('scheduler — precedencias', () => {
     const r = run({
       graph: g,
       pending: new Set(['A', 'B', 'C', 'D']),
-      settings: settings({ maxNightSlots: 5 }),
+      settings: settings({ maxPerTerm: 5 }),
     });
     for (const s of g.subjects) {
       for (const p of s.prereqs) {
@@ -63,13 +63,13 @@ describe('scheduler — precedencias', () => {
 });
 
 describe('scheduler — capacidad', () => {
-  it('no supera maxNightSlots por cuatrimestre', () => {
+  it('no supera maxPerTerm por cuatrimestre', () => {
     const subs = ['A', 'B', 'C', 'D'].map((c) => makeSubject(c));
     const g = buildGraph(subs);
     const r = run({
       graph: g,
       pending: new Set(['A', 'B', 'C', 'D']),
-      settings: settings({ maxNightSlots: 2 }),
+      settings: settings({ maxPerTerm: 2 }),
     });
     // 4 materias independientes, 2 por cuatri → 2 cuatris.
     expect(r.makespan).toBe(2);
@@ -85,7 +85,7 @@ describe('scheduler — materia anual', () => {
     const r = run({
       graph: g,
       pending: new Set(['X']),
-      settings: settings({ maxNightSlots: 1 }),
+      settings: settings({ maxPerTerm: 1 }),
     });
     expect(r.startByCode.get('X')).toBe(0);
     expect(r.finishByCode.get('X')).toBe(1); // termina un cuatri después
@@ -100,7 +100,7 @@ describe('scheduler — materia anual', () => {
     const r = run({
       graph: g,
       pending: new Set(['X', 'Y']),
-      settings: settings({ maxNightSlots: 1 }),
+      settings: settings({ maxPerTerm: 1 }),
     });
     // X ocupa cuatri 0 y 1; Y (capacidad 1) recién en cuatri 2.
     expect(r.startByCode.get('X')).toBe(0);
@@ -115,7 +115,7 @@ describe('scheduler — materia anual', () => {
     const r = run({
       graph: g,
       pending: new Set(['P']),
-      settings: settings({ startTerm: 2, maxNightSlots: 3 }),
+      settings: settings({ startTerm: 2, maxPerTerm: 3 }),
     });
     expect(r.startByCode.get('P')).toBe(1);
     expect(calendarOf(1, 2026, 2).isFirstSemester).toBe(true);
@@ -132,7 +132,7 @@ describe('scheduler — makespan válido', () => {
       makeSubject('E'),
     ]);
     const pending = new Set(['A', 'B', 'C', 'D', 'E']);
-    const r = run({ graph: g, pending, settings: settings({ maxNightSlots: 2 }) });
+    const r = run({ graph: g, pending, settings: settings({ maxPerTerm: 2 }) });
     const scheduled = r.terms.flatMap((t) => t.subjects);
     expect(scheduled.sort()).toEqual([...pending].sort());
   });

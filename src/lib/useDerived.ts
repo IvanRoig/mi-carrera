@@ -1,26 +1,26 @@
 /**
- * useDerived.ts — Deriva todo lo calculado (estados, progreso, promedio,
- * simulación automática) a partir del estado del store. Memoizado.
+ * useDerived.ts — Deriva todo lo calculado a partir del estado del store.
  */
 import { useMemo } from 'react';
 import { useStore } from '@/store/useStore';
 import { graph } from '@/domain/planGraph';
 import { subjects } from '@/data/plan';
-import {
-  computeStatuses,
-  longestDownstreamTerms,
-} from '@/domain/graph';
+import { computeStatuses, longestDownstreamTerms } from '@/domain/graph';
 import { computePriorityMetrics } from '@/domain/priority';
 import { schedule, type ScheduleResult } from '@/domain/scheduler';
 import type { SubjectStatus } from '@/domain/types';
-import { isNightCommission, offeringMap, scarcityFromOffer } from '@/domain/conflicts';
+import { TALLER_CODE } from '@/domain/types';
+import { scarcityFromOffer } from '@/domain/conflicts';
+import { intermediateProgress, type IntermediateProgress } from '@/domain/degrees';
 
 export type Derived = {
   statuses: Map<string, SubjectStatus>;
-  /** Materias terminadas (aprobadas ∪ regularizadas ∪ en curso). */
   done: Set<string>;
-  /** Materias pendientes de cursar. */
   pending: Set<string>;
+  /** Materias consideradas (todas, menos Taller si está descartado). */
+  universe: Set<string>;
+  /** ¿El usuario ya cargó algún dato? */
+  loaded: boolean;
   progress: {
     approvedCount: number;
     total: number;
@@ -29,11 +29,8 @@ export type Derived = {
     hoursTotal: number;
     remainingCount: number;
   };
-  promedio: {
-    sinAplazos: number;
-    conAplazos: number;
-    count: number;
-  };
+  promedio: { sinAplazos: number; conAplazos: number; count: number };
+  intermediate: IntermediateProgress;
   metrics: ReturnType<typeof computePriorityMetrics>;
   criticalTermsAll: Map<string, number>;
   schedule: ScheduleResult;
@@ -44,26 +41,33 @@ export function useDerived(): Derived {
   const offer = useStore((s) => s.offer);
 
   return useMemo(() => {
-    const statuses = computeStatuses(graph, user);
-
-    const approvedSet = new Set(user.approved.map((a) => a.code));
-    const done = new Set<string>([
-      ...approvedSet,
-      ...user.regularized,
-      ...user.inProgress,
-    ]);
-    const pending = new Set(
-      subjects.map((s) => s.code).filter((c) => !done.has(c)),
+    const includeTaller = user.settings.includeTaller;
+    const universe = new Set(
+      subjects
+        .map((s) => s.code)
+        .filter((c) => includeTaller || c !== TALLER_CODE),
     );
 
-    // Progreso.
-    const total = subjects.length;
-    const approvedCount = approvedSet.size;
-    const hoursTotal = subjects.reduce((a, s) => a + s.totalHours, 0);
-    const hoursDone = user.approved.reduce(
-      (a, r) => a + (graph.byCode.get(r.code)?.totalHours ?? 0),
+    const statuses = computeStatuses(graph, user);
+    const approvedSet = new Set(user.approved.map((a) => a.code));
+    const difficult = new Set(user.difficult);
+
+    const done = new Set<string>(
+      [...approvedSet, ...user.regularized, ...user.inProgress].filter((c) =>
+        universe.has(c),
+      ),
+    );
+    const pending = new Set([...universe].filter((c) => !done.has(c)));
+
+    const total = universe.size;
+    const approvedCount = [...approvedSet].filter((c) => universe.has(c)).length;
+    const hoursTotal = [...universe].reduce(
+      (a, c) => a + (graph.byCode.get(c)?.totalHours ?? 0),
       0,
     );
+    const hoursDone = user.approved
+      .filter((r) => universe.has(r.code))
+      .reduce((a, r) => a + (graph.byCode.get(r.code)?.totalHours ?? 0), 0);
 
     // Promedio.
     const grades = user.approved.map((a) => a.grade);
@@ -73,17 +77,7 @@ export function useDerived(): Derived {
     const aplazos = user.settings.aplazos ?? 0;
     const conAplazos = count + aplazos ? sum / (count + aplazos) : 0;
 
-    // Escasez y clasificación de turno desde la oferta (si hay).
     const scarcity = offer ? scarcityFromOffer(offer) : undefined;
-    const offMap = offer ? offeringMap(offer) : null;
-    const classifyNight = offMap
-      ? (code: string) => {
-          const o = offMap.get(code);
-          if (!o || o.commissions.length === 0) return true; // sin datos → noche
-          // Es "no noche" solo si TODAS sus comisiones son fuera de la noche.
-          return o.commissions.some((c) => isNightCommission(c));
-        }
-      : undefined;
 
     const metrics = computePriorityMetrics(graph, pending, scarcity);
     const criticalTermsAll = longestDownstreamTerms(graph, pending);
@@ -93,14 +87,23 @@ export function useDerived(): Derived {
       pending,
       done,
       settings: user.settings,
-      classifyNight,
+      offer,
+      difficult,
       scarcity,
     });
+
+    const intermediate = intermediateProgress(subjects, approvedSet);
+    const loaded =
+      user.approved.length > 0 ||
+      user.regularized.length > 0 ||
+      user.inProgress.length > 0;
 
     return {
       statuses,
       done,
       pending,
+      universe,
+      loaded,
       progress: {
         approvedCount,
         total,
@@ -110,6 +113,7 @@ export function useDerived(): Derived {
         remainingCount: pending.size,
       },
       promedio: { sinAplazos, conAplazos, count },
+      intermediate,
       metrics,
       criticalTermsAll,
       schedule: sched,

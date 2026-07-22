@@ -2,11 +2,11 @@
  * alerts.ts — Alertas inteligentes sobre el plan del usuario.
  */
 import type { Graph } from './graph';
-import { descendantsOf } from './graph';
 import type { SubjectStatus } from './types';
+import { TALLER_CODE } from './types';
 import type { ScheduleResult } from './scheduler';
 import type { OfferData } from './conflicts';
-import { offeringMap } from './conflicts';
+import { offeringMap, DAY_NAMES } from './conflicts';
 
 export type Alert = {
   level: 'info' | 'warn';
@@ -21,9 +21,11 @@ export function generateAlerts(
   sched: ScheduleResult,
   nameOf: (code: string) => string,
   offer?: OfferData | null,
+  loaded = true,
 ): Alert[] {
   const alerts: Alert[] = [];
-  if (pending.size === 0) return alerts;
+  // Sin datos cargados (o carrera terminada) no tiene sentido alertar nada.
+  if (!loaded || pending.size === 0) return alerts;
 
   // 1) Electivas dejadas para el final.
   const electives = [...pending].filter((c) => g.byCode.get(c)?.isElective);
@@ -42,14 +44,13 @@ export function generateAlerts(
     }
   }
 
-  // 2) Taller de Integración habilitado pero no cursado.
-  const taller = '03680';
-  if (statuses.get(taller) === 'eligible') {
+  // 2) Taller de Integración (optativo) habilitado pero pendiente.
+  if (pending.has(TALLER_CODE) && statuses.get(TALLER_CODE) === 'eligible') {
     alerts.push({
       level: 'info',
-      title: `${nameOf(taller)} ya está habilitado`,
+      title: `${nameOf(TALLER_CODE)} está habilitado (es optativo)`,
       detail:
-        'Tenés todas sus correlativas. Es una materia “hoja” (no desbloquea nada), así que podés ubicarla cuando te quede cómodo.',
+        'Tenés todas sus correlativas. Es una materia optativa que no desbloquea nada; si no la vas a hacer, podés descartarla desde el botón de Taller de Integración.',
     });
   }
 
@@ -60,31 +61,15 @@ export function generateAlerts(
       const o = offMap.get(c);
       if (o && o.commissions.length === 1) {
         const cm = o.commissions[0];
+        const m = cm.meetings[0];
+        const cuando = m ? `${DAY_NAMES[m.day]} ${m.start}` : cm.modality;
         alerts.push({
           level: 'warn',
           title: `${nameOf(c)} está en la ruta crítica y se ofrece poco`,
-          detail: `Solo hay 1 comisión este cuatri (día ${cm.day}, ${cm.start}). Si se cae, se te atrasa el egreso: aseguratela.`,
+          detail: `Solo hay 1 comisión este cuatri (${cuando}). Si se cae, se te atrasa el egreso: aseguratela.`,
         });
       }
     }
-  }
-
-  // 4) Materias hoja pendientes (sin nada aguas abajo) → dejar para el final.
-  const leaves = [...pending].filter(
-    (c) => [...descendantsOf(g, c)].every((d) => !pending.has(d)),
-  );
-  const earlyLeaves = leaves.filter(
-    (c) => (sched.startByCode.get(c) ?? 99) < 1 && !g.byCode.get(c)?.isElective,
-  );
-  if (earlyLeaves.length >= 3) {
-    alerts.push({
-      level: 'info',
-      title: 'Tenés materias “hoja” programadas temprano',
-      detail:
-        'Materias que no desbloquean nada (' +
-        earlyLeaves.slice(0, 3).map(nameOf).join(', ') +
-        '…) pueden ir más adelante y dar lugar a las que sí encadenan correlativas.',
-    });
   }
 
   return alerts;

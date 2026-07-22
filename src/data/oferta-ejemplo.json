@@ -1,26 +1,26 @@
 {
-  "cuatrimestre": "2C-2026",
-  "nota": "Formato de ejemplo para la oferta de comisiones. Cada materia puede tener varias comisiones. day: 0=Lun..6=Dom. Modalidades: presencial | semipresencial | sincronica | distancia.",
+  "cuatrimestre": "2C-2026 (ejemplo)",
+  "nota": "Ejemplo en el formato nuevo. Una comisión puede tener varios encuentros (meetings). day: 0=Lun..6=Dom. Modalidades: presencial | semipresencial | sincronica | distancia | virtual.",
   "offerings": [
     { "code": "03634", "commissions": [
-      { "id": "1600", "day": 0, "start": "19:00", "end": "23:00", "modality": "presencial", "campus": "San Justo" }
+      { "id": "1600", "meetings": [{ "day": 0, "start": "19:00", "end": "23:00" }], "modality": "presencial", "campus": "San Justo" }
     ]},
     { "code": "03647", "commissions": [
-      { "id": "2600", "day": 0, "start": "19:00", "end": "23:00", "modality": "sincronica" },
-      { "id": "2601", "day": 1, "start": "19:00", "end": "23:00", "modality": "sincronica" }
+      { "id": "2600", "meetings": [{ "day": 0, "start": "19:00", "end": "23:00" }], "modality": "sincronica" },
+      { "id": "2601", "meetings": [{ "day": 1, "start": "19:00", "end": "23:00" }], "modality": "sincronica" }
     ]},
     { "code": "03650", "commissions": [
-      { "id": "3600", "day": 2, "start": "19:00", "end": "23:00", "modality": "semipresencial" }
+      { "id": "3600", "meetings": [{ "day": 2, "start": "19:00", "end": "23:00" }], "modality": "semipresencial" }
     ]},
     { "code": "03654", "commissions": [
-      { "id": "4600", "day": 1, "start": "19:00", "end": "23:00", "modality": "sincronica" },
-      { "id": "4601", "day": 3, "start": "19:00", "end": "23:00", "modality": "sincronica" }
+      { "id": "4600", "meetings": [{ "day": 1, "start": "19:00", "end": "23:00" }], "modality": "sincronica" },
+      { "id": "4601", "meetings": [{ "day": 3, "start": "19:00", "end": "23:00" }], "modality": "sincronica" }
     ]},
     { "code": "03657", "commissions": [
-      { "id": "5600", "day": 4, "start": "19:00", "end": "23:00", "modality": "sincronica" }
+      { "id": "5600", "meetings": [{ "day": 4, "start": "19:00", "end": "23:00" }], "modality": "sincronica" }
     ]},
     { "code": "03676", "commissions": [
-      { "id": "6600", "day": 2, "start": "08:00", "end": "12:00", "modality": "sincronica" }
+      { "id": "6600", "meetings": [{ "day": 2, "start": "08:00", "end": "12:00" }], "modality": "sincronica" }
     ]}
   ]
 }

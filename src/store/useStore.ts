@@ -19,8 +19,8 @@ import exampleState from '@/data/mi-estado-ejemplo.json';
 export type Scenario = {
   id: string;
   name: string;
-  maxNightSlots: number;
-  maxNonNightSlots: number;
+  maxPerTerm: number;
+  sicario?: boolean;
 };
 
 /** Un cuatrimestre armado a mano en el simulador manual. */
@@ -53,8 +53,10 @@ export type StoreState = {
   setGrade: (code: string, grade: number) => void;
   toggleRegularized: (code: string) => void;
   toggleInProgress: (code: string) => void;
+  toggleDifficult: (code: string) => void;
   clearStatus: (code: string) => void;
   importApproved: (rows: { code: string; grade: number }[]) => void;
+  importState: (raw: RawState) => void;
 
   // --- Configuración ---
   updateSettings: (patch: Partial<UserSettings>) => void;
@@ -89,6 +91,7 @@ function stateFromRaw(raw: RawState): UserState {
     approved: normalizeApproved(raw.approved ?? []),
     regularized: (raw.regularized ?? []).filter((c) => subjectByCode.has(c)),
     inProgress: (raw.inProgress ?? []).filter((c) => subjectByCode.has(c)),
+    difficult: [],
     settings: { ...DEFAULT_SETTINGS },
   };
 }
@@ -97,6 +100,7 @@ const emptyUser: UserState = {
   approved: [],
   regularized: [],
   inProgress: [],
+  difficult: [],
   settings: { ...DEFAULT_SETTINGS },
 };
 
@@ -189,6 +193,20 @@ export const useStore = create<StoreState>()(
           };
         }),
 
+      toggleDifficult: (code) =>
+        set((s) => {
+          if (!subjectByCode.has(code)) return s;
+          const has = s.user.difficult.includes(code);
+          return {
+            user: {
+              ...s.user,
+              difficult: has
+                ? s.user.difficult.filter((c) => c !== code)
+                : [...s.user.difficult, code],
+            },
+          };
+        }),
+
       clearStatus: (code) =>
         set((s) => ({
           user: {
@@ -197,6 +215,16 @@ export const useStore = create<StoreState>()(
             regularized: s.user.regularized.filter((c) => c !== code),
             inProgress: s.user.inProgress.filter((c) => c !== code),
           },
+        })),
+
+      importState: (raw) =>
+        set((s) => ({
+          user: {
+            ...stateFromRaw(raw),
+            // Conservamos la configuración actual del usuario.
+            settings: { ...s.user.settings },
+          },
+          manualTerms: [],
         })),
 
       importApproved: (rows) =>
@@ -291,7 +319,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'unlam-planner-v1',
-      version: 1,
+      version: 2,
       partialize: (s) => ({
         user: s.user,
         electiveNames: s.electiveNames,
@@ -299,6 +327,21 @@ export const useStore = create<StoreState>()(
         manualTerms: s.manualTerms,
         offer: s.offer,
       }),
+      // Rellena defaults ante estados viejos (settings previos, sin `difficult`).
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<StoreState>;
+        const pu = p.user;
+        return {
+          ...current,
+          ...p,
+          user: {
+            ...current.user,
+            ...(pu ?? {}),
+            difficult: pu?.difficult ?? [],
+            settings: { ...DEFAULT_SETTINGS, ...(pu?.settings ?? {}) },
+          },
+        };
+      },
     },
   ),
 );

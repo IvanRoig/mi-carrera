@@ -1,25 +1,38 @@
 /**
- * conflicts.ts — Oferta de comisiones, choques de horario y turno (noche vs no-noche).
+ * conflicts.ts — Oferta de comisiones, choques de horario y turno.
+ *
+ * Una comisión puede tener VARIOS encuentros (p.ej. Lunes y Jueves 17-19), por
+ * eso `meetings` es una lista. Modalidad "distancia" (o sin encuentros) no ocupa
+ * franja horaria y nunca choca.
  */
 
 export type Modality =
   | 'presencial'
   | 'semipresencial'
   | 'sincronica'
-  | 'distancia';
+  | 'distancia'
+  | 'virtual';
 
-export type Commission = {
-  id: string;
+/** Un encuentro de una comisión: día + franja horaria. */
+export type Meeting = {
   /** 0 = Lunes .. 6 = Domingo. */
   day: number;
   start: string; // "HH:MM"
   end: string; // "HH:MM"
+};
+
+export type Commission = {
+  id: string;
+  meetings: Meeting[];
   modality: Modality;
   campus?: string;
+  /** Texto original de "Días" (para mostrar tal cual si hace falta). */
+  raw?: string;
 };
 
 export type Offering = {
   code: string;
+  name?: string;
   commissions: Commission[];
 };
 
@@ -38,27 +51,35 @@ export const DAY_NAMES = [
   'Domingo',
 ];
 
+export const DAY_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
 /** "HH:MM" → minutos desde medianoche. */
 export function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + (m || 0);
 }
 
-/** ¿La comisión es de turno noche? (arranca 18:00 o más y no es a distancia). */
+/** ¿Es una comisión de turno noche? (algún encuentro arranca 18:00 o más). */
 export function isNightCommission(c: Commission): boolean {
   if (c.modality === 'distancia') return false;
-  return toMinutes(c.start) >= 18 * 60;
+  return c.meetings.some((m) => toMinutes(m.start) >= 18 * 60);
 }
 
-/** ¿Dos comisiones se solapan en día y horario? (a distancia nunca choca). */
+/** ¿Dos encuentros se solapan (mismo día y horario)? */
+export function meetingsOverlap(a: Meeting, b: Meeting): boolean {
+  if (a.day !== b.day) return false;
+  return toMinutes(a.start) < toMinutes(b.end) && toMinutes(b.start) < toMinutes(a.end);
+}
+
+/** ¿Dos comisiones chocan? (algún par de encuentros se solapa; distancia nunca). */
 export function commissionsOverlap(a: Commission, b: Commission): boolean {
   if (a.modality === 'distancia' || b.modality === 'distancia') return false;
-  if (a.day !== b.day) return false;
-  const aStart = toMinutes(a.start);
-  const aEnd = toMinutes(a.end);
-  const bStart = toMinutes(b.start);
-  const bEnd = toMinutes(b.end);
-  return aStart < bEnd && bStart < aEnd;
+  for (const ma of a.meetings) {
+    for (const mb of b.meetings) {
+      if (meetingsOverlap(ma, mb)) return true;
+    }
+  }
+  return false;
 }
 
 export type SelectedCommission = { code: string; commission: Commission };
@@ -88,7 +109,7 @@ export function offeringMap(offer: OfferData): Map<string, Offering> {
 
 /**
  * Escasez por materia a partir de la oferta: menos comisiones = más escasa.
- * scarcity = max(0, 3 - #comisiones). Materias no ofertadas quedan sin score.
+ * scarcity = max(0, 3 - #comisiones).
  */
 export function scarcityFromOffer(offer: OfferData): Map<string, number> {
   const m = new Map<string, number>();
@@ -101,4 +122,36 @@ export function scarcityFromOffer(offer: OfferData): Map<string, number> {
 /** Códigos ofertados este cuatrimestre. */
 export function offeredCodes(offer: OfferData): Set<string> {
   return new Set(offer.offerings.map((o) => o.code));
+}
+
+/**
+ * ¿Se puede elegir una comisión para cada materia del conjunto sin que ninguna
+ * choque? (asignación factible). Devuelve el mapa código→comisión si se puede,
+ * o null si es imposible. Backtracking simple (pocas materias por cuatri).
+ */
+export function findConflictFreeAssignment(
+  codes: string[],
+  offMap: Map<string, Offering>,
+): Map<string, Commission> | null {
+  const result = new Map<string, Commission>();
+
+  function backtrack(i: number): boolean {
+    if (i >= codes.length) return true;
+    const o = offMap.get(codes[i]);
+    // Sin oferta para esta materia: no bloquea (no sabemos su horario).
+    if (!o || o.commissions.length === 0) return backtrack(i + 1);
+    for (const c of o.commissions) {
+      const clashes = [...result.values()].some((used) =>
+        commissionsOverlap(used, c),
+      );
+      if (!clashes) {
+        result.set(codes[i], c);
+        if (backtrack(i + 1)) return true;
+        result.delete(codes[i]);
+      }
+    }
+    return false;
+  }
+
+  return backtrack(0) ? result : null;
 }

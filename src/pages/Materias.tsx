@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { subjects, tracks, years, getSubject } from '@/data/plan';
 import { useStore } from '@/store/useStore';
 import { useDerived } from '@/lib/useDerived';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/Badge';
 import { STATUS_CHIP, STATUS_LABEL, gradeClass } from '@/lib/ui';
 import type { SubjectStatus } from '@/domain/types';
 import { parseTabular } from '@/lib/parseTabular';
+import { parseHistoriaPdf } from '@/lib/parsePdf';
 
 const STATUS_FILTERS: { id: SubjectStatus | 'all'; label: string }[] = [
   { id: 'all', label: 'Todas' },
@@ -25,6 +26,35 @@ export function Materias() {
   const [track, setTrack] = useState<string | 'all'>('all');
   const [status, setStatus] = useState<SubjectStatus | 'all'>('all');
   const [showImport, setShowImport] = useState(false);
+  const importApproved = useStore((s) => s.importApproved);
+  const toggleRegularized = useStore((s) => s.toggleRegularized);
+  const pdfRef = useRef<HTMLInputElement>(null);
+  const [pdfMsg, setPdfMsg] = useState('');
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  async function handlePdf(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPdfBusy(true);
+    setPdfMsg('Leyendo el PDF…');
+    try {
+      const res = await parseHistoriaPdf(file);
+      importApproved(res.approved);
+      for (const c of res.regularized) toggleRegularized(c);
+      setPdfMsg(
+        `Detecté ${res.approved.length} aprobadas` +
+          (res.regularized.length ? ` y ${res.regularized.length} regularizadas` : '') +
+          (res.ignored.length ? ` · ${res.ignored.length} filas ignoradas (plan viejo)` : '') +
+          '.',
+      );
+    } catch (err) {
+      console.error(err);
+      setPdfMsg('No pude leer ese PDF. ¿Es la historia académica del campus?');
+    } finally {
+      setPdfBusy(false);
+      if (pdfRef.current) pdfRef.current.value = '';
+    }
+  }
 
   const filtered = useMemo(() => {
     const nq = q.trim().toLowerCase();
@@ -94,13 +124,24 @@ export function Materias() {
             </option>
           ))}
         </select>
+        <input ref={pdfRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={handlePdf} />
+        <button
+          onClick={() => pdfRef.current?.click()}
+          disabled={pdfBusy}
+          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+        >
+          {pdfBusy ? 'Leyendo…' : '📄 Subir historia (PDF)'}
+        </button>
         <button
           onClick={() => setShowImport((v) => !v)}
-          className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-700"
         >
-          Importar pegando texto
+          Pegar texto
         </button>
       </div>
+      {pdfMsg && (
+        <p className="text-sm text-emerald-600 dark:text-emerald-400">{pdfMsg}</p>
+      )}
 
       {/* Filtro por estado */}
       <div className="flex flex-wrap gap-1.5">
@@ -159,10 +200,12 @@ function SubjectRow({ code }: { code: string }) {
   const setGrade = useStore((x) => x.setGrade);
   const toggleRegularized = useStore((x) => x.toggleRegularized);
   const toggleInProgress = useStore((x) => x.toggleInProgress);
+  const toggleDifficult = useStore((x) => x.toggleDifficult);
   const clearStatus = useStore((x) => x.clearStatus);
   const renameElective = useStore((x) => x.renameElective);
 
   const grade = user.approved.find((a) => a.code === code)?.grade;
+  const isDifficult = user.difficult.includes(code);
 
   const btn =
     'rounded-md px-2 py-1 text-xs font-medium border transition';
@@ -240,6 +283,13 @@ function SubjectRow({ code }: { code: string }) {
             onClick={() => toggleInProgress(code)}
           >
             Cursando
+          </button>
+          <button
+            className={`${btn} ${isDifficult ? 'border-amber-500 bg-amber-500/15 text-amber-600 dark:text-amber-400' : btnOff}`}
+            onClick={() => toggleDifficult(code)}
+            title="Marcar como difícil (opcional)"
+          >
+            {isDifficult ? '★' : '☆'}
           </button>
           {st !== 'blocked' && st !== 'eligible' && (
             <button
