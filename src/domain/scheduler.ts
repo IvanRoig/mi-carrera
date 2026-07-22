@@ -59,6 +59,10 @@ export type ScheduleInput = {
   sicario?: boolean;
   preScheduled?: Map<string, number>;
   firstFreeTerm?: number;
+  /** Preferencia de electiva: código de cupo (Electiva I/II/III) → día elegido
+   * (0=Lun..4=Vie). Fuerza esa electiva al día elegido. Sin entrada = sin
+   * preferencia (el simulador elige el óptimo). */
+  electivePref?: Record<string, number>;
 };
 
 export function calendarOf(
@@ -100,6 +104,13 @@ function buildOfferMaps(input: ScheduleInput) {
       // (se ubica igual, sin restricción de choque, y se avisa en el manual).
       const avail = comms.filter((c) => commissionFitsAvailability(c, availableSlots));
       comms = avail;
+    }
+    // Preferencia de electiva: si elegiste una electiva puntual (un día), dejamos
+    // SOLO la comisión de ese día, así el simulador la ubica ahí (respetando
+    // choques). Sin preferencia, quedan todas y elige la óptima.
+    const prefDay = input.electivePref?.[code];
+    if (prefDay != null) {
+      comms = comms.filter((c) => c.meetings.some((m) => m.day === prefDay));
     }
     base.set(code, { ...o, commissions: comms });
   }
@@ -177,9 +188,10 @@ export function schedule(input: ScheduleInput): ScheduleResult {
 }
 
 /** Asigna comisiones sin choques a cada cuatri del resultado final.
- * Las electivas (3 cupos genéricos, una por día Lun-Vie) se reparten en días
- * DISTINTOS entre sí a lo largo de todo el plan: así nunca te sugiere la misma
- * electiva dos veces. */
+ * Las electivas son un POOL (5 opciones, una por día Lun-Vie) del que necesitás
+ * 3: se reparten en días DISTINTOS entre sí y, cuando no forzaste ninguna,
+ * eligen los días donde tenés MENOS materias (los más libres), para no mandarte
+ * a un día que tenés recargado. */
 function assignAllCommissions(
   result: ScheduleResult,
   maps: ReturnType<typeof buildOfferMaps>,
@@ -187,32 +199,54 @@ function assignAllCommissions(
 ): Map<string, Commission> {
   const out = new Map<string, Commission>();
   if (!maps.offMapPref) return out;
-  const usedElectiveDays = new Set<number>();
   const dayOf = (c: Commission) => c.meetings[0]?.day;
+  const dayLoad = new Map<number, number>(); // día → cuántas materias tuyas caen ahí
+  const addLoad = (comm: Commission) => {
+    for (const m of comm.meetings) dayLoad.set(m.day, (dayLoad.get(m.day) ?? 0) + 1);
+  };
+  const takenByTerm: Commission[][] = [];
 
-  result.terms.forEach((t) => {
+  // PASO 1: materias normales (sin choques). Definen tu "mapa de días ocupados".
+  result.terms.forEach((t, i) => {
     const offMap = t.index === 0 ? maps.offMap0! : maps.offMapPref!;
-    const offered = t.subjects.filter((c) => (offMap.get(c)?.commissions.length ?? 0) > 0);
-    const electives = offered.filter((c) => graph.byCode.get(c)?.isElective);
-    const others = offered.filter((c) => !graph.byCode.get(c)?.isElective);
-
-    // 1) Materias normales: asignación sin choques (como siempre).
+    const others = t.subjects.filter(
+      (c) => !graph.byCode.get(c)?.isElective && (offMap.get(c)?.commissions.length ?? 0) > 0,
+    );
     const asg = findConflictFreeAssignment(others, offMap);
     const taken: Commission[] = [];
-    if (asg) for (const [code, comm] of asg) { out.set(code, comm); taken.push(comm); }
+    if (asg) for (const [code, comm] of asg) { out.set(code, comm); taken.push(comm); addLoad(comm); }
+    takenByTerm[i] = taken;
+  });
 
-    // 2) Electivas: preferir un día que NINGUNA otra electiva ya usó (global) y
-    //    que no choque con lo del cuatri; si no hay, cualquiera sin choque.
+  // PASO 2: electivas → días distintos entre sí y preferentemente los más libres.
+  const usedElectiveDays = new Set<number>();
+  result.terms.forEach((t, i) => {
+    const offMap = t.index === 0 ? maps.offMap0! : maps.offMapPref!;
+    const taken = takenByTerm[i];
+    const electives = t.subjects.filter(
+      (c) => graph.byCode.get(c)?.isElective && (offMap.get(c)?.commissions.length ?? 0) > 0,
+    );
     for (const c of electives) {
       const comms = offMap.get(c)?.commissions ?? [];
       const free = (cm: Commission) => !taken.some((u) => commissionsOverlap(u, cm));
-      const pick =
-        comms.find((cm) => free(cm) && dayOf(cm) != null && !usedElectiveDays.has(dayOf(cm)!)) ??
-        comms.find(free) ??
-        comms[0];
+      const candidates = comms.filter(free);
+      candidates.sort((a, b) => {
+        const da = dayOf(a);
+        const db = dayOf(b);
+        // 1) preferir un día que ninguna otra electiva ya haya usado
+        const ua = da != null && usedElectiveDays.has(da) ? 1 : 0;
+        const ub = db != null && usedElectiveDays.has(db) ? 1 : 0;
+        if (ua !== ub) return ua - ub;
+        // 2) preferir el día donde tenés MENOS materias (más libre)
+        const la = da != null ? dayLoad.get(da) ?? 0 : 0;
+        const lb = db != null ? dayLoad.get(db) ?? 0 : 0;
+        return la - lb;
+      });
+      const pick = candidates[0] ?? comms[0];
       if (pick) {
         out.set(c, pick);
         taken.push(pick);
+        addLoad(pick);
         const d = dayOf(pick);
         if (d != null) usedElectiveDays.add(d);
       }

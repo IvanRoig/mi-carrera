@@ -209,6 +209,9 @@ function SubjectRow({ code }: { code: string }) {
   const toggleDifficult = useStore((x) => x.toggleDifficult);
   const clearStatus = useStore((x) => x.clearStatus);
   const renameElective = useStore((x) => x.renameElective);
+  const offer = useStore((x) => x.offer);
+  const electivePref = useStore((x) => x.electivePref);
+  const setElectivePref = useStore((x) => x.setElectivePref);
 
   const grade = user.approved.find((a) => a.code === code)?.grade;
   const isDifficult = user.difficult.includes(code);
@@ -237,14 +240,47 @@ function SubjectRow({ code }: { code: string }) {
             <div className="text-xs text-slate-400">
               {s.code} · {s.year}° año · {s.track}
             </div>
-            {s.isElective && (
-              <input
-                placeholder="Nombre de la electiva que cursás…"
-                defaultValue={name(code) === s.name ? '' : name(code)}
-                onBlur={(e) => renameElective(code, e.target.value)}
-                className="mt-1 w-56 rounded border border-slate-300 bg-transparent px-2 py-0.5 text-xs dark:border-slate-700"
-              />
-            )}
+            {s.isElective && (() => {
+              // Opciones = las electivas reales ofrecidas (una por día) según la oferta.
+              const opts = (offer?.offerings.find((o) => o.code === code)?.commissions ?? [])
+                .map((c) => ({ day: c.meetings[0]?.day, label: c.label }))
+                .filter((o): o is { day: number; label: string } => o.day != null && !!o.label);
+              // Días ya elegidos por OTRAS electivas (para no repetir la misma).
+              const takenByOthers = new Set(
+                Object.entries(electivePref)
+                  .filter(([k]) => k !== code)
+                  .map(([, day]) => day),
+              );
+              const current = electivePref[code];
+              return (
+                <div className="mt-1">
+                  <select
+                    value={current ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === '') {
+                        setElectivePref(code, null);
+                        renameElective(code, '');
+                      } else {
+                        const day = Number(v);
+                        setElectivePref(code, day);
+                        const lbl = opts.find((o) => o.day === day)?.label ?? '';
+                        renameElective(code, lbl);
+                      }
+                    }}
+                    className="w-64 rounded border border-slate-300 bg-transparent px-2 py-0.5 text-xs dark:border-slate-700 dark:bg-slate-900"
+                  >
+                    <option value="">Sin preferencia (que el simulador elija)</option>
+                    {opts.map((o) => (
+                      <option key={o.day} value={o.day} disabled={takenByOthers.has(o.day)}>
+                        {o.label}
+                        {takenByOthers.has(o.day) ? ' (ya elegida en otra)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </td>

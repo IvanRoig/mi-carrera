@@ -102,9 +102,13 @@ export function meetingsOverlap(a: Meeting, b: Meeting): boolean {
   return toMinutes(a.start) < toMinutes(b.end) && toMinutes(b.start) < toMinutes(a.end);
 }
 
-/** ¿Dos comisiones chocan? (algún par de encuentros se solapa; distancia nunca). */
+/**
+ * ¿Dos comisiones chocan? Es una materia por horario: si dos encuentros se
+ * solapan en día y hora, chocan — AUNQUE sean a distancia/sincrónicas (la
+ * facultad no te deja cursar dos cosas en la misma franja). Solo las que no
+ * tienen horario fijo (asincrónicas puras, sin encuentros) nunca chocan.
+ */
 export function commissionsOverlap(a: Commission, b: Commission): boolean {
-  if (a.modality === 'distancia' || b.modality === 'distancia') return false;
   for (const ma of a.meetings) {
     for (const mb of b.meetings) {
       if (meetingsOverlap(ma, mb)) return true;

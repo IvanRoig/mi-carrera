@@ -32,8 +32,13 @@ describe('commissionsOverlap (multi-encuentro)', () => {
     const b = comm([[1, '19:00', '23:00']]);
     expect(commissionsOverlap(a, b)).toBe(false);
   });
-  it('a distancia nunca choca', () => {
+  it('a distancia CON horario también choca (una materia por franja)', () => {
     const a = comm([[0, '19:00', '23:00']], 'distancia');
+    const b = comm([[0, '19:00', '23:00']]);
+    expect(commissionsOverlap(a, b)).toBe(true);
+  });
+  it('sin horario fijo (asincrónica pura, sin encuentros) nunca choca', () => {
+    const a = comm([], 'distancia');
     const b = comm([[0, '19:00', '23:00']]);
     expect(commissionsOverlap(a, b)).toBe(false);
   });
