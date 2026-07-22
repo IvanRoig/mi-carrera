@@ -45,6 +45,12 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Credenciales de Supabase desde los Secrets del repo (Settings →
+          # Secrets and variables → Actions). Si no las cargás, la app se
+          # despliega en modo invitado (solo localStorage).
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Subir artefacto
         uses: actions/upload-pages-artifact@v3

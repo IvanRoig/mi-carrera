@@ -14,6 +14,8 @@ import { Grafo } from '@/pages/Grafo';
 import { Simulador } from '@/pages/Simulador';
 import { Comparador } from '@/pages/Comparador';
 import { Oferta } from '@/pages/Oferta';
+import { AccountButton, RecoveryScreen } from '@/components/Auth';
+import { useAuth } from '@/store/useAuth';
 
 type TabId = 'tablero' | 'materias' | 'grafo' | 'simulador' | 'comparador' | 'oferta';
 
@@ -30,6 +32,12 @@ export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(getInitialTheme());
   const [tab, setTab] = useState<TabId>('tablero');
   const importFullState = useStore((s) => s.importFullState);
+  const initAuth = useAuth((s) => s.init);
+
+  // Inicializa la sesión de Supabase (o modo invitado si no está configurado).
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
 
   // Al montar: si viene un plan compartido en el hash, ofrecer importarlo.
   useEffect(() => {
@@ -68,6 +76,7 @@ export default function App() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <AccountButton />
               <DataMenu />
               <button
                 onClick={toggleTheme}
@@ -108,6 +117,8 @@ export default function App() {
         {tab === 'comparador' && <Comparador />}
         {tab === 'oferta' && <Oferta />}
       </main>
+
+      <RecoveryScreen />
     </div>
   );
 }
