@@ -13,6 +13,7 @@
     "lint": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
     "@xyflow/react": "^12.3.6",
     "lz-string": "^1.5.0",
     "react": "^19.0.0",

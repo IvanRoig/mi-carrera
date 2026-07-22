@@ -4,8 +4,10 @@ App web 100% cliente (sin backend) para **controlar tu avance** en Ingeniería e
 Informática de la **UNLaM (plan 2023-2)** y, sobre todo, **planificar tus
 cuatrimestres para recibirte en el menor tiempo posible**.
 
-Todo tu estado se guarda en `localStorage` (nunca sale de tu navegador) y podés
-exportarlo/importarlo como JSON o compartirlo por link.
+Funciona **sin cuenta** (tus datos quedan en `localStorage`) y, opcionalmente, con
+**cuenta** (email + contraseña vía Supabase) para sincronizar en la nube entre
+dispositivos. También podés exportar/importar tu estado como JSON o compartirlo por
+link.
 
 ## ✨ Qué hace
 
@@ -36,6 +38,39 @@ El simulador es un problema de *scheduling con precedencias y capacidad* (minimi
 makespan), NP-hard. Se resuelve con el heurístico estándar (greedy por ruta crítica)
 más una pasada de mejora local. Ver `src/domain/{graph,priority,scheduler}.ts`,
 con tests en Vitest.
+
+## 👤 Cuentas (opcional) — Supabase
+
+La app funciona **sin cuenta** (modo invitado, datos en `localStorage`). Si querés
+que cada usuario tenga **cuenta con email + contraseña** y sus datos **en la nube**
+(sincronizados entre dispositivos, con recuperación de contraseña y email único),
+conectá un proyecto de **Supabase** (gratis). Las contraseñas las gestiona Supabase
+Auth (hasheadas con bcrypt); nadie las ve.
+
+### Setup (5 minutos)
+
+1. Creá un proyecto gratis en <https://supabase.com>.
+2. **SQL Editor → New query** y ejecutá el contenido de
+   [`supabase/schema.sql`](supabase/schema.sql) (crea la tabla y las políticas de
+   seguridad por usuario).
+3. **Project Settings → API**: copiá la **Project URL** y la **anon public key**.
+4. Para desarrollo local, creá `.env.local` (mirá `.env.example`):
+   ```
+   VITE_SUPABASE_URL=https://TU-PROYECTO.supabase.co
+   VITE_SUPABASE_ANON_KEY=tu-anon-key-publica
+   ```
+5. Para el deploy en Pages, cargá esas dos como **Secrets** del repo
+   (**Settings → Secrets and variables → Actions**): `VITE_SUPABASE_URL` y
+   `VITE_SUPABASE_ANON_KEY`. El workflow ya las usa.
+
+> La **anon key es pública por diseño** (segura de exponer en el front): sola no da
+> acceso a nada, los datos están protegidos por Row-Level Security. Si no cargás
+> credenciales, la app corre en modo invitado sin cuentas.
+>
+> **Recuperación de contraseña**: Supabase manda el mail y la app muestra la
+> pantalla para elegir una nueva. En producción configurá el *Site URL* y los
+> *Redirect URLs* en Supabase (Authentication → URL Configuration) apuntando a la
+> URL de tu GitHub Pages.
 
 ## 🛠️ Desarrollo
 
