@@ -28,6 +28,9 @@ export type Commission = {
   campus?: string;
   /** Texto original de "Días" (para mostrar tal cual si hace falta). */
   raw?: string;
+  /** Nombre real de la materia ofrecida en esta comisión (para las electivas,
+   * donde cada día corresponde a una electiva distinta). */
+  label?: string;
 };
 
 export type Offering = {
