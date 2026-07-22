@@ -100,10 +100,11 @@ function buildOfferMaps(input: ScheduleInput) {
     let comms = [...o.commissions].sort(cmp);
     if (availableSlots) {
       // Tu disponibilidad aplica a todos los cuatris. Si la materia tiene alguna
-      // comisión que podés, usamos SOLO esas; si no tiene ninguna, queda vacía
-      // (se ubica igual, sin restricción de choque, y se avisa en el manual).
+      // comisión que podés, usamos SOLO esas. Si NINGUNA entra (p.ej. el Proyecto
+      // Final que solo se ofrece sábados y no marcaste ese slot), dejamos todas:
+      // es obligatoria, mejor mostrarla en su día real que ocultarla "a distancia".
       const avail = comms.filter((c) => commissionFitsAvailability(c, availableSlots));
-      comms = avail;
+      if (avail.length > 0) comms = avail;
     }
     // Preferencia de electiva: si elegiste una electiva puntual (un día), dejamos
     // SOLO la comisión de ese día, así el simulador la ubica ahí (respetando
@@ -147,12 +148,58 @@ function lowerBound(input: ScheduleInput, cap: number): number {
   return Math.max(1, capLB, critLB);
 }
 
+/** Carga aproximada por día según las materias NO electivas (para elegir los
+ * días más libres para las electivas). */
+function estimateDayLoad(input: ScheduleInput): Map<number, number> {
+  const load = new Map<number, number>();
+  if (!input.offer) return load;
+  const offMap = offeringMap(input.offer);
+  for (const c of input.pending) {
+    if (input.graph.byCode.get(c)?.isElective) continue;
+    const comms = offMap.get(c)?.commissions ?? [];
+    const days = [...new Set(comms.flatMap((cm) => cm.meetings.map((m) => m.day)))];
+    for (const d of days) load.set(d, (load.get(d) ?? 0) + 1 / days.length);
+  }
+  return load;
+}
+
+/**
+ * Asigna a cada electiva un día DISTINTO (restricción dura, no preferencia): así
+ * nunca te sugiere la misma electiva dos veces. Respeta la preferencia que hayas
+ * puesto y, para el resto, elige los días más libres. Devuelve un input con
+ * `electivePref` completado.
+ */
+function withDistinctElectiveDays(input: ScheduleInput): ScheduleInput {
+  const electivas = [...input.pending].filter((c) => input.graph.byCode.get(c)?.isElective);
+  if (electivas.length <= 1 || !input.offer) return input;
+  const offMap = offeringMap(input.offer);
+  const pref: Record<string, number> = { ...(input.electivePref ?? {}) };
+  const used = new Set<number>(Object.values(pref));
+  const load = estimateDayLoad(input);
+  for (const code of electivas) {
+    if (pref[code] != null) continue;
+    // días que ESTA electiva ofrece y que ninguna otra ya tomó, del más libre al más cargado
+    const offered = [
+      ...new Set((offMap.get(code)?.commissions ?? []).flatMap((c) => c.meetings.map((m) => m.day))),
+    ];
+    const pick = offered
+      .filter((d) => !used.has(d))
+      .sort((a, b) => (load.get(a) ?? 0) - (load.get(b) ?? 0))[0];
+    if (pick != null) {
+      pref[code] = pick;
+      used.add(pick);
+    }
+  }
+  return { ...input, electivePref: pref };
+}
+
 /**
  * Programa óptimo: minimiza el makespan (con reintentos aleatorios para no
  * quedarse en un óptimo local del greedy) y, con esa meta, arma cuatris parejos
  * buscando el menor tope por cuatri que igual la logra.
  */
-export function schedule(input: ScheduleInput): ScheduleResult {
+export function schedule(inputRaw: ScheduleInput): ScheduleResult {
+  const input = withDistinctElectiveDays(inputRaw);
   const effectiveMax = input.sicario
     ? Math.max(1, input.pending.size)
     : Math.max(1, input.settings.maxPerTerm);
