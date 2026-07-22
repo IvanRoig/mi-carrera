@@ -651,37 +651,41 @@ function ManualView() {
                 </div>
 
                 <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] gap-1.5">
-                  {DAYS.map((day) => (
-                    <div key={day} className="min-w-0">
-                      <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">{DAY_SHORT[day]}</div>
-                      {TURNOS.map(({ key: turno, label }) => {
-                        const st = dragging ? slotStatus(idx, day, turno) : null;
-                        const items = groups.cols.get(day)![turno];
-                        return (
-                          <div
-                            key={turno}
-                            onDragEnter={() => setHover({ term: idx, day, turno })}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={dropOnSlot(day, turno)}
-                            className={`rounded-md transition ${
-                              dragging
-                                ? `mb-1 min-h-[30px] p-0.5 ${st ? cellColor(st) : ''}`
-                                : items.length
-                                  ? 'mb-1 space-y-1'
-                                  : ''
-                            }`}
-                          >
-                            {dragging && (
-                              <div className="text-center text-[8px] uppercase tracking-wide text-slate-400/80">
-                                {label}
-                              </div>
-                            )}
-                            <div className="space-y-1">{items.map(chipOf)}</div>
+                  {DAYS.map((day) => {
+                    const col = groups.cols.get(day)!;
+                    // Chips en un layout ESTABLE (no cambia al arrastrar): mañana,
+                    // tarde, noche de arriba hacia abajo.
+                    const chips = [...col.m, ...col.t, ...col.n];
+                    return (
+                      <div key={day} className="relative min-h-[92px] min-w-0">
+                        <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">
+                          {DAY_SHORT[day]}
+                        </div>
+                        <div className="space-y-1">{chips.map(chipOf)}</div>
+                        {/* Zonas de turno SUPERPUESTAS solo al arrastrar (no tocan los chips). */}
+                        {dragging && (
+                          <div className="absolute inset-x-0 bottom-0 top-[18px] flex flex-col gap-0.5">
+                            {TURNOS.map(({ key: turno, label }) => {
+                              const st = slotStatus(idx, day, turno);
+                              return (
+                                <div
+                                  key={turno}
+                                  onDragEnter={() => setHover({ term: idx, day, turno })}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={dropOnSlot(day, turno)}
+                                  className={`flex flex-1 items-start justify-center rounded-md ${cellColor(st)}`}
+                                >
+                                  <span className="mt-0.5 text-[8px] uppercase tracking-wide text-white/90">
+                                    {label}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 {groups.noDay.length > 0 && (
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
