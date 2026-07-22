@@ -4,6 +4,7 @@ import {
   Background,
   Controls,
   MiniMap,
+  Position,
   type Node,
   type Edge,
   MarkerType,
@@ -74,6 +75,10 @@ export function Grafo() {
       return {
         id: s.code,
         position: positions.get(s.code) ?? { x: 0, y: 0 },
+        // El layout va izq→der por nivel de correlatividad, así que las flechas
+        // salen por la derecha y entran por la izquierda (líneas limpias).
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
         data: {
           label: s.isElective && electiveNames[s.code] ? electiveNames[s.code] : s.name,
         },
@@ -110,11 +115,13 @@ export function Grafo() {
           id: `${p}->${s.code}`,
           source: p,
           target: s.code,
-          markerEnd: { type: MarkerType.ArrowClosed },
+          type: 'smoothstep',
+          pathOptions: { borderRadius: 16 },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: onPath ? '#3479f6' : '#64748b' },
           style: {
             stroke: onPath ? '#3479f6' : '#64748b',
-            strokeWidth: onPath ? 2.5 : 1,
-            opacity: related ? (onPath ? 1 : 0.08) : 0.35,
+            strokeWidth: onPath ? 2.5 : 1.2,
+            opacity: related ? (onPath ? 1 : 0.06) : 0.3,
           },
         });
       }
