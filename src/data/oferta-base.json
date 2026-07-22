@@ -4394,6 +4394,189 @@
           "raw": "Vi08a12"
         }
       ]
+    },
+    {
+      "code": "03672",
+      "name": "Electiva I",
+      "commissions": [
+        {
+          "id": "electiva-0",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-1",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-2",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-3",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-4",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        }
+      ]
+    },
+    {
+      "code": "03673",
+      "name": "Electiva II",
+      "commissions": [
+        {
+          "id": "electiva-0",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-1",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-2",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-3",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-4",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        }
+      ]
+    },
+    {
+      "code": "03674",
+      "name": "Electiva III",
+      "commissions": [
+        {
+          "id": "electiva-0",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-1",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-2",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-3",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        },
+        {
+          "id": "electiva-4",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "sincronica"
+        }
+      ]
     }
   ]
 }

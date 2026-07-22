@@ -13,6 +13,7 @@ import {
   isNightCommission,
   offeringMap,
   toMinutes,
+  turnoOf,
 } from './conflicts';
 
 export type ManualTermInput = { id: string; subjects: string[] };
@@ -99,6 +100,7 @@ export function validateManualPlan(
   offer?: OfferData | null,
   difficult?: Set<string>,
   forcedDay: Record<string, number> = {},
+  forcedTurno: Record<string, 'm' | 't' | 'n'> = {},
 ): ManualPlanDiag {
   const offMap = offer ? offeringMap(offer) : null;
   const diff = difficult ?? new Set<string>();
@@ -132,11 +134,17 @@ export function validateManualPlan(
     for (const code of t.subjects) {
       const forced = forcedDay[code];
       if (forced === undefined) continue;
+      const ft = forcedTurno[code];
       const comms = commsOf(code);
-      const onDay =
+      let onDay =
         forced === -1
           ? comms.filter((c) => c.modality === 'distancia' || c.meetings.length === 0)
           : comms.filter((c) => c.meetings.some((m) => m.day === forced));
+      if (ft && forced !== -1) {
+        onDay = onDay.filter((c) =>
+          c.meetings.some((m) => m.day === forced && turnoOf(toMinutes(m.start)) === ft),
+        );
+      }
       if (onDay.length === 0) {
         if (comms.length > 0) forcedNoDaySet.add(code);
       } else {

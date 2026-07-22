@@ -5,7 +5,13 @@ import type { StoreState } from '@/store/useStore';
 /** Subconjunto exportable del store. */
 export type ExportableState = Pick<
   StoreState,
-  'user' | 'electiveNames' | 'scenarios' | 'manualTerms' | 'manualForcedDay' | 'offer'
+  | 'user'
+  | 'electiveNames'
+  | 'scenarios'
+  | 'manualTerms'
+  | 'manualForcedDay'
+  | 'manualForcedTurno'
+  | 'offer'
 >;
 
 export function pickExportable(s: StoreState): ExportableState {
@@ -15,6 +21,7 @@ export function pickExportable(s: StoreState): ExportableState {
     scenarios: s.scenarios,
     manualTerms: s.manualTerms,
     manualForcedDay: s.manualForcedDay,
+    manualForcedTurno: s.manualForcedTurno,
     offer: s.offer,
   };
 }
@@ -42,6 +49,7 @@ export function parseImportedState(text: string): Partial<ExportableState> | nul
     if (obj.scenarios) out.scenarios = obj.scenarios;
     if (obj.manualTerms) out.manualTerms = obj.manualTerms;
     if (obj.manualForcedDay) out.manualForcedDay = obj.manualForcedDay;
+    if (obj.manualForcedTurno) out.manualForcedTurno = obj.manualForcedTurno;
     if (obj.offer !== undefined) out.offer = obj.offer;
     return out;
   } catch {
