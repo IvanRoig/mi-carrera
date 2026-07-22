@@ -47,4 +47,9 @@ describe('normalizeModality', () => {
     expect(normalizeModality('Sincrónica')).toBe('sincronica');
     expect(normalizeModality('Presencial')).toBe('presencial');
   });
+  it('reconoce "Sincrónica Teams" aunque la ó venga mal codificada (latin1→utf8)', () => {
+    expect(normalizeModality('Sincrónica Teams')).toBe('sincronica');
+    expect(normalizeModality('Sincr�nica Teams')).toBe('sincronica'); // ó rota
+    expect(normalizeModality('sincronica teams')).toBe('sincronica');
+  });
 });
