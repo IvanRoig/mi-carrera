@@ -14,12 +14,19 @@ import {
   offeringMap,
   commissionFitsAvailability,
   commissionsOverlap,
+  turnoOf,
+  toMinutes,
   DAY_SHORT,
   type Commission,
 } from '@/domain/conflicts';
 
 const PFC = '03671';
 const DAYS = [0, 1, 2, 3, 4, 5];
+const TURNOS: { key: 'm' | 't' | 'n'; label: string }[] = [
+  { key: 'm', label: 'mañana' },
+  { key: 't', label: 'tarde' },
+  { key: 'n', label: 'noche' },
+];
 
 function yearsLabel(years: number): string {
   if (years <= 0) return '—';
@@ -194,17 +201,21 @@ function TermGrid({
   );
 
   return (
-    <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] gap-1.5">
-      {DAYS.map((d) => (
-        <div key={d} className="min-w-0">
-          <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">{DAY_SHORT[d]}</div>
-          <div className="space-y-1">{cols.get(d)!.map(chip)}</div>
-        </div>
-      ))}
-      <div className="min-w-0">
-        <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">Distancia</div>
-        <div className="space-y-1">{noDay.map(chip)}</div>
+    <div>
+      <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] gap-1.5">
+        {DAYS.map((d) => (
+          <div key={d} className="min-w-0">
+            <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">{DAY_SHORT[d]}</div>
+            <div className="space-y-1">{cols.get(d)!.map(chip)}</div>
+          </div>
+        ))}
       </div>
+      {noDay.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-semibold text-slate-400">💻 Sin día fijo:</span>
+          {noDay.map(chip)}
+        </div>
+      )}
     </div>
   );
 }
@@ -352,16 +363,17 @@ function ManualView() {
   const name = useSubjectName();
   const manualTerms = useStore((s) => s.manualTerms);
   const manualForcedDay = useStore((s) => s.manualForcedDay);
+  const manualForcedTurno = useStore((s) => s.manualForcedTurno);
   const setManualTerms = useStore((s) => s.setManualTerms);
   const moveToManualTerm = useStore((s) => s.moveToManualTerm);
-  const placeOnDay = useStore((s) => s.placeOnDay);
+  const placeOnSlot = useStore((s) => s.placeOnSlot);
   const addManualTerm = useStore((s) => s.addManualTerm);
   const removeManualTerm = useStore((s) => s.removeManualTerm);
   const offer = useStore((s) => s.offer);
   const settings = useStore((s) => s.user.settings);
   const difficultArr = useStore((s) => s.user.difficult);
   const [dragging, setDragging] = useState<string | null>(null);
-  const [hover, setHover] = useState<{ term: number; day: number } | null>(null);
+  const [hover, setHover] = useState<{ term: number; day: number; turno: 'm' | 't' | 'n' } | null>(null);
 
   const offMap = useMemo(() => (offer ? offeringMap(offer) : null), [offer]);
   const availSet = settings.restrictAvailability ? new Set(settings.availableSlots) : null;
@@ -378,8 +390,9 @@ function ManualView() {
         offer,
         new Set(difficultArr),
         manualForcedDay,
+        manualForcedTurno,
       ),
-    [d.done, manualTerms, settings, offer, difficultArr, manualForcedDay],
+    [d.done, manualTerms, settings, offer, difficultArr, manualForcedDay, manualForcedTurno],
   );
 
   function seedFromAuto() {
@@ -413,38 +426,39 @@ function ManualView() {
     return f;
   }, [d.done, manualTerms]);
 
-  // Estado de una celda (cuatri, día) para la materia que se arrastra.
-  function dayStatus(termIdx: number, day: number): DayStatus {
+  // Estado de una celda (cuatri, día, turno) para la materia que se arrastra.
+  function slotStatus(termIdx: number, day: number, turno: 'm' | 't' | 'n'): DayStatus {
     if (!dragging) return { kind: 'ok', reason: '' };
     const s = graph.byCode.get(dragging)!;
+    const turnoTxt = turno === 'm' ? 'mañana' : turno === 't' ? 'tarde' : 'noche';
     const cal = calendarOf(termIdx, settings.startYear, settings.startTerm);
     if ((s.annual || s.startsOnlyFirstSemester) && !cal.isFirstSemester)
-      return { kind: 'block', reason: 'Solo puede arrancar en un 1er cuatrimestre.' };
+      return { kind: 'block', reason: 'Solo puede arrancar en un 1er cuatrimestre (anual / Proyecto Final).' };
     const reqs = graph.prereqs.get(dragging) ?? [];
     const missing = reqs.filter((p) => (finishMap.get(p) ?? Infinity) >= termIdx);
     if (missing.length)
       return { kind: 'block', reason: `Te faltan correlativas antes: ${missing.map(name).join(', ')}.` };
 
     const o = offMap?.get(dragging);
-    const onDay = o?.commissions.filter((c) =>
-      day === -1 ? c.meetings.length === 0 || c.modality === 'distancia' : c.meetings.some((m) => m.day === day),
-    );
     if (!o || o.commissions.length === 0)
-      return { kind: 'ok', reason: 'No está en la oferta (sin horario fijo). Podés ubicarla.' };
-    if (!onDay || onDay.length === 0)
-      return { kind: 'no-oferta', reason: `La oferta actual no tiene esta materia el ${DAY_SHORT[day] ?? 'ese día'}. Podés igual (quedará marcada) o actualizá la oferta.` };
+      return { kind: 'ok', reason: 'No tiene horario fijo en la oferta. Podés ubicarla igual.' };
+    const onSlot = o.commissions.filter((c) =>
+      c.meetings.some((m) => m.day === day && turnoOf(toMinutes(m.start)) === turno),
+    );
+    if (onSlot.length === 0)
+      return {
+        kind: 'no-oferta',
+        reason: `Con la oferta actual esta materia no se da el ${DAY_SHORT[day]} a la ${turnoTxt}. Podés soltarla igual (queda marcada) o cargá una oferta más nueva desde la solapa Oferta.`,
+      };
+    if (availSet && !onSlot.some((c) => commissionFitsAvailability(c, availSet)))
+      return { kind: 'no-oferta', reason: `El ${DAY_SHORT[day]} a la ${turnoTxt} no está en tu disponibilidad.` };
 
-    // Disponibilidad.
-    if (availSet && !onDay.some((c) => commissionFitsAvailability(c, availSet)))
-      return { kind: 'no-oferta', reason: 'Ese día/horario no entra en tu disponibilidad.' };
-
-    // Choque con las otras materias del cuatri.
     const others = diag.terms[termIdx]?.subjects.filter((sd) => sd.code !== dragging && sd.commission) ?? [];
-    const clashes = onDay.every((c) => others.some((sd) => commissionsOverlap(sd.commission!, c)));
-    if (onDay.length > 0 && others.length > 0 && clashes)
-      return { kind: 'conflict', reason: 'Se solapa con otra materia de ese cuatri.' };
+    const allClash = onSlot.every((c) => others.some((sd) => commissionsOverlap(sd.commission!, c)));
+    if (others.length > 0 && allClash)
+      return { kind: 'conflict', reason: `Se solapa con otra materia ese día/horario.` };
 
-    return { kind: 'ok', reason: `Podés cursarla el ${DAY_SHORT[day]} 👍` };
+    return { kind: 'ok', reason: `Podés cursarla el ${DAY_SHORT[day]} a la ${turnoTxt} 👍` };
   }
 
   const startDrag = (code: string) => (e: React.DragEvent) => {
@@ -456,32 +470,33 @@ function ManualView() {
     setHover(null);
   };
 
-  const hoverStatus = dragging && hover ? dayStatus(hover.term, hover.day) : null;
+  const hoverStatus = dragging && hover ? slotStatus(hover.term, hover.day, hover.turno) : null;
   const cellColor = (st: DayStatus) =>
     st.kind === 'ok'
-      ? 'bg-emerald-500/15 ring-1 ring-emerald-400'
+      ? 'bg-emerald-500/20 ring-1 ring-emerald-400'
       : st.kind === 'no-oferta'
-        ? 'bg-amber-500/15 ring-1 ring-amber-400'
-        : 'bg-rose-500/15 ring-1 ring-rose-400';
+        ? 'bg-amber-500/20 ring-1 ring-amber-400'
+        : 'bg-rose-500/20 ring-1 ring-rose-400';
 
-  // Agrupa las materias de un cuatri (con su diagnóstico) por día.
+  // Agrupa las materias de un cuatri (con su diagnóstico) por día y turno.
   type Item = { sd: SubjectDiag; cont: boolean };
+  type DayCol = Record<'m' | 't' | 'n', Item[]>;
   function groupTerm(subs: SubjectDiag[], continuing: SubjectDiag[]) {
-    const cols = new Map<number, Item[]>();
-    for (const dd of DAYS) cols.set(dd, []);
+    const cols = new Map<number, DayCol>();
+    for (const dd of DAYS) cols.set(dd, { m: [], t: [], n: [] });
     const noDay: Item[] = [];
     const add = (sd: SubjectDiag, cont: boolean) => {
-      if (sd.day != null && sd.day <= 5) cols.get(sd.day)!.push({ sd, cont });
-      else noDay.push({ sd, cont });
+      const c = sd.commission;
+      if (sd.day != null && sd.day <= 5 && c && c.meetings.length) {
+        const m = c.meetings.find((mm) => mm.day === sd.day) ?? c.meetings[0];
+        cols.get(sd.day)![turnoOf(toMinutes(m.start))].push({ sd, cont });
+      } else if (sd.day != null && sd.day <= 5) {
+        // forzada a un día sin comisión: la ubicamos en la noche por defecto.
+        cols.get(sd.day)!.n.push({ sd, cont });
+      } else noDay.push({ sd, cont });
     };
     for (const sd of subs) add(sd, false);
     for (const sd of continuing) add(sd, true);
-    // Mañana arriba, noche abajo.
-    const startMin = (it: Item) => {
-      const t = commTime(it.sd.commission);
-      return t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : 0;
-    };
-    for (const dd of DAYS) cols.get(dd)!.sort((a, b) => startMin(a) - startMin(b));
     return { cols, noDay };
   }
 
@@ -537,15 +552,16 @@ function ManualView() {
 
       {hoverStatus && (
         <div
-          className={`sticky top-2 z-10 rounded-lg border px-4 py-2 text-sm font-medium shadow ${
+          className={`fixed inset-x-0 bottom-5 z-50 mx-auto w-fit max-w-[92vw] rounded-xl border px-4 py-2.5 text-sm font-medium shadow-2xl backdrop-blur ${
             hoverStatus.kind === 'ok'
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+              ? 'border-emerald-500/50 bg-emerald-500/95 text-white'
               : hoverStatus.kind === 'no-oferta'
-                ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                : 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                ? 'border-amber-500/50 bg-amber-500/95 text-white'
+                : 'border-rose-500/50 bg-rose-500/95 text-white'
           }`}
         >
-          {name(dragging!)} → {hoverStatus.reason}
+          {hoverStatus.kind === 'ok' ? '✅' : hoverStatus.kind === 'no-oferta' ? '⚠️' : '⛔'}{' '}
+          <strong>{name(dragging!)}</strong> → {hoverStatus.reason}
         </div>
       )}
 
@@ -579,12 +595,25 @@ function ManualView() {
         <div className="space-y-3">
           {diag.terms.map((t, idx) => {
             const groups = groupTerm(t.subjects, t.continuing);
-            const dropOnDay = (day: number) => (e: React.DragEvent) => {
+            const dropOnSlot = (day: number, turno: 'm' | 't' | 'n') => (e: React.DragEvent) => {
               e.preventDefault();
               const code = e.dataTransfer.getData('text/plain');
-              placeOnDay(code, t.id, day);
+              placeOnSlot(code, t.id, day, turno);
               endDrag();
             };
+            const chipOf = ({ sd, cont }: Item) => (
+              <MateriaChip
+                key={sd.code}
+                code={sd.code}
+                time={commTime(sd.commission)}
+                continuing={cont}
+                draggable={!cont}
+                onDragStart={cont ? undefined : startDrag(sd.code)}
+                onDragEnd={cont ? undefined : endDrag}
+                warn={cont ? null : warnOf(sd)}
+                note={cont ? undefined : noteOf(sd)}
+              />
+            );
             return (
               <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
                 <div className="mb-2 flex items-center justify-between">
@@ -604,60 +633,45 @@ function ManualView() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] gap-1.5">
-                  {DAYS.map((day) => {
-                    const st = dragging ? dayStatus(idx, day) : null;
-                    return (
-                      <div
-                        key={day}
-                        onDragEnter={() => setHover({ term: idx, day })}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={dropOnDay(day)}
-                        className={`min-h-[52px] min-w-0 rounded-md p-0.5 transition ${st ? cellColor(st) : ''}`}
-                      >
-                        <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">{DAY_SHORT[day]}</div>
-                        <div className="space-y-1">
-                          {groups.cols.get(day)!.map(({ sd, cont }) => (
-                            <MateriaChip
-                              key={sd.code}
-                              code={sd.code}
-                              time={commTime(sd.commission)}
-                              continuing={cont}
-                              draggable={!cont}
-                              onDragStart={cont ? undefined : startDrag(sd.code)}
-                              onDragEnd={cont ? undefined : endDrag}
-                              warn={cont ? null : warnOf(sd)}
-                              note={cont ? undefined : noteOf(sd)}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div
-                    onDragEnter={() => setHover({ term: idx, day: -1 })}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={dropOnDay(-1)}
-                    className={`min-h-[52px] min-w-0 rounded-md p-0.5 transition ${dragging ? cellColor(dayStatus(idx, -1)) : ''}`}
-                  >
-                    <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">Distancia</div>
-                    <div className="space-y-1">
-                      {groups.noDay.map(({ sd, cont }) => (
-                        <MateriaChip
-                          key={sd.code}
-                          code={sd.code}
-                          time={commTime(sd.commission)}
-                          continuing={cont}
-                          draggable={!cont}
-                          onDragStart={cont ? undefined : startDrag(sd.code)}
-                          onDragEnd={cont ? undefined : endDrag}
-                          warn={cont ? null : warnOf(sd)}
-                          note={cont ? undefined : sd.notOffered ? 'no está en la oferta' : noteOf(sd)}
-                        />
-                      ))}
+                <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] gap-1.5">
+                  {DAYS.map((day) => (
+                    <div key={day} className="min-w-0">
+                      <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">{DAY_SHORT[day]}</div>
+                      {TURNOS.map(({ key: turno, label }) => {
+                        const st = dragging ? slotStatus(idx, day, turno) : null;
+                        const items = groups.cols.get(day)![turno];
+                        return (
+                          <div
+                            key={turno}
+                            onDragEnter={() => setHover({ term: idx, day, turno })}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={dropOnSlot(day, turno)}
+                            className={`rounded-md transition ${
+                              dragging
+                                ? `mb-1 min-h-[30px] p-0.5 ${st ? cellColor(st) : ''}`
+                                : items.length
+                                  ? 'mb-1 space-y-1'
+                                  : ''
+                            }`}
+                          >
+                            {dragging && (
+                              <div className="text-center text-[8px] uppercase tracking-wide text-slate-400/80">
+                                {label}
+                              </div>
+                            )}
+                            <div className="space-y-1">{items.map(chipOf)}</div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
+                  ))}
                 </div>
+                {groups.noDay.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-semibold text-slate-400">💻 Sin día fijo:</span>
+                    {groups.noDay.map(chipOf)}
+                  </div>
+                )}
 
                 {/* Motivos de conflictos ya soltados */}
                 {t.subjects

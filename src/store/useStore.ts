@@ -50,6 +50,8 @@ export type StoreState = {
   /** Día forzado por materia en el manual (0=Lun..5=Sáb, -1=distancia). Sin
    * entrada = elección automática de comisión. */
   manualForcedDay: Record<string, number>;
+  /** Turno forzado por materia en el manual ('m'|'t'|'n'). Opcional. */
+  manualForcedTurno: Record<string, 'm' | 't' | 'n'>;
   /** Oferta de comisiones del cuatrimestre cargada (opcional). */
   offer: OfferData | null;
 
@@ -83,6 +85,8 @@ export type StoreState = {
   /** Coloca una materia en un cuatri y un día específico (elige la comisión de
    * ese día; si no hay, la deja "forzada" a ese día con aviso). */
   placeOnDay: (code: string, termId: string, day: number) => void;
+  /** Coloca una materia en un cuatri, día y turno específicos. */
+  placeOnSlot: (code: string, termId: string, day: number, turno: 'm' | 't' | 'n') => void;
   addManualTerm: () => void;
   removeManualTerm: (termId: string) => void;
 
@@ -122,6 +126,7 @@ export const useStore = create<StoreState>()(
       scenarios: [],
       manualTerms: [],
       manualForcedDay: {},
+      manualForcedTurno: {},
       offer: baseOffer,
 
       setApproved: (code, grade) =>
@@ -277,6 +282,7 @@ export const useStore = create<StoreState>()(
           scenarios: [],
           manualTerms: [],
           manualForcedDay: {},
+          manualForcedTurno: {},
           offer: baseOffer,
         })),
 
@@ -293,7 +299,8 @@ export const useStore = create<StoreState>()(
       removeScenario: (id) =>
         set((s) => ({ scenarios: s.scenarios.filter((x) => x.id !== id) })),
 
-      setManualTerms: (terms) => set(() => ({ manualTerms: terms, manualForcedDay: {} })),
+      setManualTerms: (terms) =>
+        set(() => ({ manualTerms: terms, manualForcedDay: {}, manualForcedTurno: {} })),
 
       moveToManualTerm: (code, termId) =>
         set((s) => {
@@ -309,8 +316,10 @@ export const useStore = create<StoreState>()(
           }
           // Al mover a un cuatri (sin día), vuelve a elección automática de comisión.
           const forced = { ...s.manualForcedDay };
+          const turno = { ...s.manualForcedTurno };
           delete forced[code];
-          return { manualTerms: terms, manualForcedDay: forced };
+          delete turno[code];
+          return { manualTerms: terms, manualForcedDay: forced, manualForcedTurno: turno };
         }),
 
       placeOnDay: (code, termId, day) =>
@@ -323,7 +332,30 @@ export const useStore = create<StoreState>()(
           if (idx >= 0 && !terms[idx].subjects.includes(code)) {
             terms[idx] = { ...terms[idx], subjects: [...terms[idx].subjects, code] };
           }
-          return { manualTerms: terms, manualForcedDay: { ...s.manualForcedDay, [code]: day } };
+          const turno = { ...s.manualForcedTurno };
+          delete turno[code];
+          return {
+            manualTerms: terms,
+            manualForcedDay: { ...s.manualForcedDay, [code]: day },
+            manualForcedTurno: turno,
+          };
+        }),
+
+      placeOnSlot: (code, termId, day, turno) =>
+        set((s) => {
+          const terms = s.manualTerms.map((t) => ({
+            ...t,
+            subjects: t.subjects.filter((c) => c !== code),
+          }));
+          const idx = terms.findIndex((t) => t.id === termId);
+          if (idx >= 0 && !terms[idx].subjects.includes(code)) {
+            terms[idx] = { ...terms[idx], subjects: [...terms[idx].subjects, code] };
+          }
+          return {
+            manualTerms: terms,
+            manualForcedDay: { ...s.manualForcedDay, [code]: day },
+            manualForcedTurno: { ...s.manualForcedTurno, [code]: turno },
+          };
         }),
 
       addManualTerm: () =>

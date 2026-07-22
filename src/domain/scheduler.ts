@@ -112,31 +112,71 @@ function termFeasible(codes: string[], offMap: Map<string, Offering> | null): bo
   return findConflictFreeAssignment(offered, offMap) !== null;
 }
 
+/** RNG determinístico (mulberry32) para reintentos reproducibles. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Cota inferior de makespan por capacidad (cada anual ocupa 2 slots). */
+function capacityLowerBound(input: ScheduleInput, cap: number): number {
+  if (!isFinite(cap)) return 1;
+  let slots = 0;
+  for (const c of input.pending) slots += input.graph.byCode.get(c)?.annual ? 2 : 1;
+  return Math.max(1, Math.ceil(slots / cap));
+}
+
 /**
- * Busca el menor tope por cuatri que igual logra el makespan mínimo, y calcula
- * la asignación de comisiones (sin choques) para el resultado final.
+ * Programa óptimo: minimiza el makespan (con reintentos aleatorios para no
+ * quedarse en un óptimo local del greedy) y, con esa meta, arma cuatris parejos
+ * buscando el menor tope por cuatri que igual la logra.
  */
 export function schedule(input: ScheduleInput): ScheduleResult {
   const effectiveMax = input.sicario
     ? Math.max(1, input.pending.size)
     : Math.max(1, input.settings.maxPerTerm);
-
   const maps = buildOfferMaps(input);
 
-  const finalCap = (() => {
-    if (input.pending.size === 0) return effectiveMax;
-    const minMakespan = runSchedule(input, effectiveMax, maps).makespan;
-    let lo = 1;
-    let hi = effectiveMax;
-    while (lo < hi) {
-      const mid = Math.floor((lo + hi) / 2);
-      if (runSchedule(input, mid, maps).makespan === minMakespan) hi = mid;
-      else lo = mid + 1;
-    }
-    return lo;
-  })();
+  if (input.pending.size === 0) {
+    const r = runSchedule(input, effectiveMax, maps);
+    r.commissionByCode = assignAllCommissions(r, maps);
+    return r;
+  }
 
-  const result = runSchedule(input, finalCap, maps);
+  // 1) Mejor makespan: greedy determinístico + reintentos aleatorios hasta la
+  //    cota inferior (si ya la alcanza, no reintenta).
+  const lb = capacityLowerBound(input, effectiveMax);
+  let bestM = runSchedule(input, effectiveMax, maps).makespan;
+  for (let i = 1; i <= 40 && bestM > lb; i++) {
+    const m = runSchedule(input, effectiveMax, maps, mulberry32(i * 2654435761)).makespan;
+    if (m < bestM) bestM = m;
+  }
+
+  // 2) Carga pareja: menor tope que sigue logrando bestM.
+  let lo = 1;
+  let hi = effectiveMax;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    let m = runSchedule(input, mid, maps).makespan;
+    for (let i = 1; i <= 12 && m > bestM; i++) {
+      m = Math.min(m, runSchedule(input, mid, maps, mulberry32(i * 40503)).makespan);
+    }
+    if (m === bestM) hi = mid;
+    else lo = mid + 1;
+  }
+
+  // 3) Resultado final en ese tope (determinístico + reintentos por si ayuda).
+  let result = runSchedule(input, lo, maps);
+  for (let i = 1; i <= 12 && result.makespan > bestM; i++) {
+    const r = runSchedule(input, lo, maps, mulberry32(i * 2246822519));
+    if (r.makespan < result.makespan) result = r;
+  }
   result.commissionByCode = assignAllCommissions(result, maps);
   return result;
 }
@@ -157,11 +197,13 @@ function assignAllCommissions(
   return out;
 }
 
-/** Corre el greedy con un tope fijo `cap`, evitando choques en cada cuatri. */
+/** Corre el greedy con un tope fijo `cap`, evitando choques en cada cuatri.
+ * Con `rng`, aleatoriza el desempate de prioridad (para reintentos). */
 function runSchedule(
   input: ScheduleInput,
   cap: number,
   maps: ReturnType<typeof buildOfferMaps>,
+  rng?: () => number,
 ): ScheduleResult {
   const { graph, settings } = input;
   const maxTerms = input.maxTerms ?? 60;
@@ -222,7 +264,16 @@ function runSchedule(
       const reqs = graph.prereqs.get(c) ?? [];
       if (reqs.every((p) => (finishByCode.get(p) ?? Infinity) < t)) eligible.push(c);
     }
-    eligible.sort((a, b) => comparePriority(a, b, metrics));
+    // Prioridad por ruta crítica; con rng, desempate aleatorio (mantiene el
+    // factor dominante pero explora distintos empaquetados).
+    if (rng) {
+      const crit = metrics.criticalTerms;
+      eligible.sort(
+        (a, b) => (crit.get(b) ?? 0) - (crit.get(a) ?? 0) || rng() - 0.5,
+      );
+    } else {
+      eligible.sort((a, b) => comparePriority(a, b, metrics));
+    }
 
     // Materias ofertadas ya elegidas este cuatri (para chequear choques).
     const chosenOffered: string[] = [];
