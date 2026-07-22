@@ -30,6 +30,9 @@ export function Comparador() {
   const [maxPerTerm, setMaxPerTerm] = useState(settings.maxPerTerm);
 
   const rows: Row[] = useMemo(() => {
+    // Sin datos cargados no hay nada que comparar (y evita programar el universo
+    // completo, que es caro). Se muestra un estado vacío más abajo.
+    if (!d.loaded) return [];
     const difficult = new Set(difficultArr);
     function compute(
       id: string,
@@ -66,9 +69,22 @@ export function Comparador() {
         compute(sc.id, sc.name, { maxPerTerm: sc.maxPerTerm }, { sicario: sc.sicario }),
       ),
     ];
-  }, [d.pending, d.done, settings, scenarios, offer, difficultArr]);
+  }, [d.loaded, d.pending, d.done, settings, scenarios, offer, difficultArr]);
 
   const best = rows.reduce((a, b) => (b.makespan < a.makespan ? b : a), rows[0]);
+
+  if (!d.loaded) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900">
+        <p className="text-lg font-semibold">Todavía no hay nada que comparar</p>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          Cargá tus materias aprobadas desde la solapa <strong>Materias</strong>{' '}
+          (o probá <strong>Datos → Cargar datos de ejemplo</strong>) y volvé acá
+          para comparar estrategias de cursada.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
