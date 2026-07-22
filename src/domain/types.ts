@@ -50,11 +50,6 @@ export type UserSettings = {
   startYear: number;
   /** Cuatrimestre de inicio (1 o 2). */
   startTerm: 1 | 2;
-  /** Meses de trámite de título a sumar a la fecha de egreso (editable). */
-  degreeProcessingMonths: number;
-  /** Cantidad de aplazos (finales desaprobados) para el promedio con aplazos.
-   * La historia académica del campus no los muestra, se cargan a mano. */
-  aplazos: number;
   /** Considerar Taller de Integración (materia optativa) en todo. */
   includeTaller: boolean;
   /** (Opcional, poco usado) limitar cuántas materias "difíciles" por cuatri. */
@@ -93,8 +88,6 @@ export const DEFAULT_SETTINGS: UserSettings = {
   maxPerTerm: 6,
   startYear: new Date().getFullYear(),
   startTerm: 1,
-  degreeProcessingMonths: 6,
-  aplazos: 0,
   includeTaller: true,
   limitDifficult: false,
   maxDifficultPerTerm: 2,

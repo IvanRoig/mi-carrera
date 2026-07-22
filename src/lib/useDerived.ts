@@ -11,7 +11,11 @@ import { schedule, type ScheduleResult } from '@/domain/scheduler';
 import type { SubjectStatus } from '@/domain/types';
 import { TALLER_CODE } from '@/domain/types';
 import { scarcityFromOffer } from '@/domain/conflicts';
-import { intermediateProgress, type IntermediateProgress } from '@/domain/degrees';
+import {
+  intermediateProgress,
+  intermediateRequired,
+  type IntermediateProgress,
+} from '@/domain/degrees';
 
 export type Derived = {
   statuses: Map<string, SubjectStatus>;
@@ -29,7 +33,14 @@ export type Derived = {
     hoursTotal: number;
     remainingCount: number;
   };
-  promedio: { sinAplazos: number; conAplazos: number; count: number };
+  promedio: {
+    /** Promedio de todas las aprobadas (título de grado). */
+    grado: number;
+    /** Promedio de las materias que cuentan para el título intermedio. */
+    intermedio: number;
+    count: number;
+    intermedioCount: number;
+  };
   intermediate: IntermediateProgress;
   metrics: ReturnType<typeof computePriorityMetrics>;
   criticalTermsAll: Map<string, number>;
@@ -69,13 +80,20 @@ export function useDerived(): Derived {
       .filter((r) => universe.has(r.code))
       .reduce((a, r) => a + (graph.byCode.get(r.code)?.totalHours ?? 0), 0);
 
-    // Promedio.
+    // Promedios: uno para el título de grado (todas las aprobadas) y otro para
+    // el título intermedio (solo las materias que cuentan para él).
     const grades = user.approved.map((a) => a.grade);
     const sum = grades.reduce((a, g) => a + g, 0);
     const count = grades.length;
-    const sinAplazos = count ? sum / count : 0;
-    const aplazos = user.settings.aplazos ?? 0;
-    const conAplazos = count + aplazos ? sum / (count + aplazos) : 0;
+    const gradoAvg = count ? sum / count : 0;
+
+    const interReq = intermediateRequired(subjects);
+    const interGrades = user.approved
+      .filter((a) => interReq.has(a.code))
+      .map((a) => a.grade);
+    const interSum = interGrades.reduce((a, g) => a + g, 0);
+    const interCount = interGrades.length;
+    const interAvg = interCount ? interSum / interCount : 0;
 
     const scarcity = offer ? scarcityFromOffer(offer) : undefined;
 
@@ -112,7 +130,7 @@ export function useDerived(): Derived {
         hoursTotal,
         remainingCount: pending.size,
       },
-      promedio: { sinAplazos, conAplazos, count },
+      promedio: { grado: gradoAvg, intermedio: interAvg, count, intermedioCount: interCount },
       intermediate,
       metrics,
       criticalTermsAll,

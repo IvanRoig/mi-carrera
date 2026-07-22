@@ -4,7 +4,6 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type {
   ApprovedSubject,
   UserSettings,
@@ -104,8 +103,9 @@ const emptyUser: UserState = {
   settings: { ...DEFAULT_SETTINGS },
 };
 
+// Sin persistencia local: en modo invitado el estado vive solo en memoria (se
+// reinicia en cada carga). Con cuenta, la persistencia es la nube (cloudSync).
 export const useStore = create<StoreState>()(
-  persist(
     (set) => ({
       user: emptyUser,
       electiveNames: {},
@@ -317,31 +317,4 @@ export const useStore = create<StoreState>()(
 
       setOffer: (offer) => set(() => ({ offer })),
     }),
-    {
-      name: 'unlam-planner-v1',
-      version: 2,
-      partialize: (s) => ({
-        user: s.user,
-        electiveNames: s.electiveNames,
-        scenarios: s.scenarios,
-        manualTerms: s.manualTerms,
-        offer: s.offer,
-      }),
-      // Rellena defaults ante estados viejos (settings previos, sin `difficult`).
-      merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<StoreState>;
-        const pu = p.user;
-        return {
-          ...current,
-          ...p,
-          user: {
-            ...current.user,
-            ...(pu ?? {}),
-            difficult: pu?.difficult ?? [],
-            settings: { ...DEFAULT_SETTINGS, ...(pu?.settings ?? {}) },
-          },
-        };
-      },
-    },
-  ),
 );

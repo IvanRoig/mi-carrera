@@ -133,11 +133,9 @@ export function validateManualPlan(
   const makespan = lastFinish + 1;
 
   const lastCal = calendarOf(Math.max(0, makespan - 1), settings.startYear, settings.startTerm);
-  const endMonth = lastCal.term === 1 ? 7 : 12;
-  const gradAbsMonth = lastCal.year * 12 + (endMonth - 1) + settings.degreeProcessingMonths;
   const graduation = {
-    year: Math.floor(gradAbsMonth / 12),
-    month: (gradAbsMonth % 12) + 1,
+    year: lastCal.year,
+    month: lastCal.term === 1 ? 7 : 12,
   };
 
   const placedCount = manualTerms.reduce((a, t) => a + t.subjects.length, 0);

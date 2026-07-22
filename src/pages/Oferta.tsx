@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useDerived } from '@/lib/useDerived';
+import { getSubject } from '@/data/plan';
 import { useSubjectName } from '@/lib/subjectName';
 import exampleOffer from '@/data/oferta-ejemplo.json';
 import {
@@ -51,6 +52,12 @@ export function Oferta() {
           archivo <strong>HTML</strong> (Ctrl+S → “Página web, solo HTML”).
           Subila acá y la app extrae automáticamente días, horarios y modalidades
           para detectar choques y mejorar el simulador.
+        </p>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          Sobre las <strong>electivas</strong>: se ofrecen con nombres propios
+          (ej: “Informática Biomédica”, martes noche). En el plan figuran como 3
+          cupos genéricos (Electiva I/II/III) que cualquier electiva cumple; podés
+          renombrarlos con la que cursás desde la solapa <strong>Materias</strong>.
         </p>
       </div>
 
@@ -109,7 +116,11 @@ function OfferContent({ offer }: { offer: OfferData }) {
 
   const eligible = [...d.pending].filter((c) => d.statuses.get(c) === 'eligible');
   const eligibleOffered = eligible.filter((c) => offMap.has(c));
-  const eligibleNotOffered = eligible.filter((c) => !offMap.has(c));
+  // Las electivas se ofrecen con nombres propios (no como los placeholders del
+  // plan), así que no las contamos como "no ofertadas".
+  const eligibleNotOffered = eligible.filter(
+    (c) => !offMap.has(c) && !getSubject(c)?.isElective,
+  );
 
   const selected: SelectedCommission[] = eligibleOffered.flatMap((c) => {
     const o = offMap.get(c)!;

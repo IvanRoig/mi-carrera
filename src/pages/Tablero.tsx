@@ -21,7 +21,6 @@ export function Tablero() {
   const name = useSubjectName();
 
   const offer = useStore((s) => s.offer);
-  const updateSettings2 = useStore((s) => s.updateSettings);
   const includeTaller = useStore((s) => s.user.settings.includeTaller);
   const grad = d.schedule.graduation;
   const restantes = d.schedule.makespan;
@@ -82,49 +81,45 @@ export function Tablero() {
         />
       </section>
 
-      {/* Título intermedio + Taller optativo */}
+      {/* Títulos: grado + intermedio, cada uno con materias faltantes y promedio */}
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            Título intermedio
-          </h3>
-          <p className="text-base font-semibold">{INTERMEDIATE_TITLE}</p>
-          {d.intermediate.done ? (
-            <p className="mt-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-              ¡Ya cumplís los requisitos! 🎓
-            </p>
-          ) : (
-            <div className="mt-2">
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold">{d.intermediate.remaining}</span>
-                <span className="text-sm text-slate-500 dark:text-slate-400">
-                  materias para obtenerlo ({d.intermediate.approved}/{d.intermediate.required})
-                </span>
-              </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                <div
-                  className="h-full rounded-full bg-emerald-500"
-                  style={{ width: `${(d.intermediate.approved / d.intermediate.required) * 100}%` }}
-                />
-              </div>
-            </div>
-          )}
-          <p className="mt-2 text-xs text-slate-400">
-            Requisito: todas las materias de 1° a 3° + Inglés I y II.
-          </p>
-        </div>
+        <TitleCard
+          label="Título de grado"
+          name="Ingeniería en Informática"
+          remaining={d.progress.remainingCount}
+          approved={d.progress.approvedCount}
+          total={d.progress.total}
+          avg={d.promedio.grado}
+          avgCount={d.promedio.count}
+          requisito="Todas las materias del plan (63)."
+        />
+        <TitleCard
+          label="Título intermedio"
+          name={INTERMEDIATE_TITLE}
+          remaining={d.intermediate.remaining}
+          approved={d.intermediate.approved}
+          total={d.intermediate.required}
+          avg={d.promedio.intermedio}
+          avgCount={d.promedio.intermedioCount}
+          requisito="Todas las materias de 1° a 3° + Inglés I y II."
+        />
+      </section>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            {getSubject(TALLER_CODE)?.name} (materia optativa)
-          </h3>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            Taller de Integración es opcional. Elegí si querés que se considere en
-            el progreso, el simulador y el grafo, o descartarla de todo.
-          </p>
-          <div className="mt-3 flex gap-2">
+      {/* Taller de Integración (optativa) */}
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-medium">
+              {getSubject(TALLER_CODE)?.name}{' '}
+              <span className="text-slate-500 dark:text-slate-400">(materia optativa)</span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Elegí si se considera en el progreso, el simulador y el grafo, o se descarta de todo.
+            </p>
+          </div>
+          <div className="flex gap-2">
             <button
-              onClick={() => updateSettings2({ includeTaller: true })}
+              onClick={() => updateSettings({ includeTaller: true })}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
                 includeTaller
                   ? 'bg-brand-600 text-white'
@@ -134,7 +129,7 @@ export function Tablero() {
               Considerarla
             </button>
             <button
-              onClick={() => updateSettings2({ includeTaller: false })}
+              onClick={() => updateSettings({ includeTaller: false })}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
                 !includeTaller
                   ? 'bg-brand-600 text-white'
@@ -144,54 +139,6 @@ export function Tablero() {
               Descartarla
             </button>
           </div>
-        </div>
-      </section>
-
-      {/* Promedio */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Promedio
-            </h3>
-            <div className="mt-1 flex items-end gap-6">
-              <div>
-                <div
-                  className={`text-3xl font-bold ${gradeClass(d.promedio.sinAplazos)}`}
-                >
-                  {d.promedio.sinAplazos.toFixed(2)}
-                </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  sin aplazos ({d.promedio.count} materias)
-                </div>
-              </div>
-              <div>
-                <div
-                  className={`text-2xl font-semibold ${gradeClass(d.promedio.conAplazos)}`}
-                >
-                  {d.promedio.conAplazos.toFixed(2)}
-                </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  con aplazos
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <label className="flex flex-col text-sm">
-            <span className="mb-1 text-slate-500 dark:text-slate-400">
-              Aplazos (no vienen en la historia)
-            </span>
-            <input
-              type="number"
-              min={0}
-              value={user.settings.aplazos}
-              onChange={(e) =>
-                updateSettings({ aplazos: Math.max(0, +e.target.value || 0) })
-              }
-              className="w-32 rounded-lg border border-slate-300 bg-transparent px-3 py-1.5 dark:border-slate-700"
-            />
-          </label>
         </div>
       </section>
 
@@ -243,7 +190,7 @@ export function Tablero() {
       </section>
 
       {/* Cadena crítica */}
-      {chain.length > 0 && (
+      {d.loaded && chain.length > 0 && (
         <section className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-5">
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold">Cadena crítica</h3>
@@ -275,7 +222,7 @@ export function Tablero() {
       )}
 
       {/* Próximo cuatri sugerido */}
-      {d.schedule.terms.length > 0 && (
+      {d.loaded && d.schedule.terms.length > 0 && (
         <section>
           <h3 className="mb-3 text-lg font-semibold">
             Próximo cuatrimestre sugerido{' '}
@@ -320,6 +267,65 @@ export function Tablero() {
           </p>
         </section>
       )}
+    </div>
+  );
+}
+
+function TitleCard({
+  label,
+  name,
+  remaining,
+  approved,
+  total,
+  avg,
+  avgCount,
+  requisito,
+}: {
+  label: string;
+  name: string;
+  remaining: number;
+  approved: number;
+  total: number;
+  avg: number;
+  avgCount: number;
+  requisito: string;
+}) {
+  const done = remaining === 0;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</h3>
+      <p className="text-base font-semibold">{name}</p>
+
+      <div className="mt-3 flex items-end justify-between gap-4">
+        <div>
+          {done ? (
+            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+              ¡Ya cumplís los requisitos! 🎓
+            </p>
+          ) : (
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold">{remaining}</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                materias ({approved}/{total})
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="text-right">
+          <div className={`text-2xl font-bold ${gradeClass(avg)}`}>
+            {avgCount ? avg.toFixed(2) : '—'}
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">promedio</div>
+        </div>
+      </div>
+
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+        <div
+          className="h-full rounded-full bg-emerald-500"
+          style={{ width: `${total ? (approved / total) * 100 : 0}%` }}
+        />
+      </div>
+      <p className="mt-2 text-xs text-slate-400">{requisito}</p>
     </div>
   );
 }

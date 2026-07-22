@@ -25,8 +25,6 @@ function translateError(msg: string): string {
   return msg;
 }
 
-const GUEST_KEY = 'unlam-guest';
-
 export type AuthState = {
   configured: boolean;
   user: User | null;
@@ -48,32 +46,19 @@ export type AuthState = {
   clearMessages: () => void;
 };
 
-function readGuest(): boolean {
-  try {
-    return localStorage.getItem(GUEST_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
 export const useAuth = create<AuthState>((set, get) => ({
   configured: isSupabaseConfigured,
   user: null,
   // Si no hay backend de cuentas, entramos directo (modo invitado).
   status: isSupabaseConfigured ? 'loading' : 'ready',
-  guest: !isSupabaseConfigured || readGuest(),
+  // Efímero: el modo invitado NO se recuerda. Cada carga muestra el login y el
+  // progreso del invitado no se guarda (solo con cuenta queda en la nube).
+  guest: !isSupabaseConfigured,
   recovery: false,
   error: null,
   info: null,
 
-  continueAsGuest: () => {
-    try {
-      localStorage.setItem(GUEST_KEY, '1');
-    } catch {
-      /* ignore */
-    }
-    set({ guest: true });
-  },
+  continueAsGuest: () => set({ guest: true }),
 
   init: () => {
     if (!supabase) {
@@ -131,11 +116,6 @@ export const useAuth = create<AuthState>((set, get) => ({
   signOut: async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
-    try {
-      localStorage.removeItem(GUEST_KEY);
-    } catch {
-      /* ignore */
-    }
     // Vuelve a la pantalla de inicio (login / invitado).
     set({ recovery: false, guest: false });
   },
