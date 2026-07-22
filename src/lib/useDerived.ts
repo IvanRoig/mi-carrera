@@ -8,7 +8,7 @@ import { subjects } from '@/data/plan';
 import { computeStatuses, longestDownstreamTerms } from '@/domain/graph';
 import { computePriorityMetrics } from '@/domain/priority';
 import { schedule, type ScheduleResult } from '@/domain/scheduler';
-import type { SubjectStatus } from '@/domain/types';
+import type { SubjectStatus, UserState } from '@/domain/types';
 import { TALLER_CODE } from '@/domain/types';
 import { scarcityFromOffer } from '@/domain/conflicts';
 import {
@@ -44,7 +44,6 @@ export type Derived = {
   intermediate: IntermediateProgress;
   metrics: ReturnType<typeof computePriorityMetrics>;
   criticalTermsAll: Map<string, number>;
-  schedule: ScheduleResult;
 };
 
 export function useDerived(): Derived {
@@ -61,7 +60,6 @@ export function useDerived(): Derived {
 
     const statuses = computeStatuses(graph, user);
     const approvedSet = new Set(user.approved.map((a) => a.code));
-    const difficult = new Set(user.difficult);
 
     const done = new Set<string>(
       [...approvedSet, ...user.regularized, ...user.inProgress].filter((c) =>
@@ -100,16 +98,6 @@ export function useDerived(): Derived {
     const metrics = computePriorityMetrics(graph, pending, scarcity);
     const criticalTermsAll = longestDownstreamTerms(graph, pending);
 
-    const sched = schedule({
-      graph,
-      pending,
-      done,
-      settings: user.settings,
-      offer,
-      difficult,
-      scarcity,
-    });
-
     const intermediate = intermediateProgress(subjects, approvedSet);
     const loaded =
       user.approved.length > 0 ||
@@ -134,7 +122,43 @@ export function useDerived(): Derived {
       intermediate,
       metrics,
       criticalTermsAll,
-      schedule: sched,
     };
   }, [user, offer]);
+}
+
+/**
+ * Cronograma automático. Separado de useDerived (es lo caro) para que solo lo
+ * recalculen las pantallas que lo muestran (Tablero, Simulador), y no cada vez
+ * que tocás una materia en otra solapa. Memoizado por (approved/regularized/
+ * inProgress/settings/difficult) y la oferta — no por el plan manual.
+ */
+export function useSchedule(): ScheduleResult {
+  const user = useStore((s) => s.user);
+  const offer = useStore((s) => s.offer);
+  return useMemo(() => computeSchedule(user, offer), [user, offer]);
+}
+
+function computeSchedule(user: UserState, offer: ReturnType<typeof useStore.getState>['offer']) {
+  const includeTaller = user.settings.includeTaller;
+  const universe = new Set(
+    subjects.map((s) => s.code).filter((c) => includeTaller || c !== TALLER_CODE),
+  );
+  const done = new Set<string>(
+    [
+      ...user.approved.map((a) => a.code),
+      ...user.regularized,
+      ...user.inProgress,
+    ].filter((c) => universe.has(c)),
+  );
+  const pending = new Set([...universe].filter((c) => !done.has(c)));
+  const scarcity = offer ? scarcityFromOffer(offer) : undefined;
+  return schedule({
+    graph,
+    pending,
+    done,
+    settings: user.settings,
+    offer,
+    difficult: new Set(user.difficult),
+    scarcity,
+  });
 }

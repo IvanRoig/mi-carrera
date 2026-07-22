@@ -1,4 +1,4 @@
-import { useDerived } from '@/lib/useDerived';
+import { useDerived, useSchedule } from '@/lib/useDerived';
 import { useStore } from '@/store/useStore';
 import { getSubject } from '@/data/plan';
 import { graph } from '@/domain/planGraph';
@@ -16,20 +16,21 @@ import {
 
 export function Tablero() {
   const d = useDerived();
+  const sched = useSchedule();
   const user = useStore((s) => s.user);
   const updateSettings = useStore((s) => s.updateSettings);
   const name = useSubjectName();
 
   const offer = useStore((s) => s.offer);
   const includeTaller = useStore((s) => s.user.settings.includeTaller);
-  const grad = d.schedule.graduation;
-  const restantes = d.schedule.makespan;
-  const chain = d.schedule.criticalChain;
+  const grad = sched.graduation;
+  const restantes = sched.makespan;
+  const chain = sched.criticalChain;
   const alerts = generateAlerts(
     graph,
     d.statuses,
     d.pending,
-    d.schedule,
+    sched,
     name,
     offer,
     d.loaded,
@@ -74,7 +75,7 @@ export function Tablero() {
           value={restantes > 0 ? String(restantes) : '—'}
           hint={
             restantes > 0
-              ? `${yearsShort(d.schedule.years)} · egreso ${formatGraduation(grad)}`
+              ? `${yearsShort(sched.years)} · egreso ${formatGraduation(grad)}`
               : '¡Ya terminaste! 🎓'
           }
           accent
@@ -222,16 +223,16 @@ export function Tablero() {
       )}
 
       {/* Próximo cuatri sugerido */}
-      {d.loaded && d.schedule.terms.length > 0 && (
+      {d.loaded && sched.terms.length > 0 && (
         <section>
           <h3 className="mb-3 text-lg font-semibold">
             Próximo cuatrimestre sugerido{' '}
             <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
-              ({termLabel(d.schedule.terms[0].term, d.schedule.terms[0].year)})
+              ({termLabel(sched.terms[0].term, sched.terms[0].year)})
             </span>
           </h3>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {d.schedule.terms[0].subjects.map((code) => {
+            {sched.terms[0].subjects.map((code) => {
               const s = getSubject(code);
               const inChain = chain.includes(code);
               return (
