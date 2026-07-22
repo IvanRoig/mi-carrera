@@ -55,6 +55,10 @@ export type StoreState = {
   /** Modo activo del simulador. Se recuerda al cambiar de pestaña (arranca en
    * 'auto', pero si lo dejaste en 'manual', al volver seguís en 'manual'). */
   simMode: 'auto' | 'sicario' | 'manual';
+  /** Preferencia de electiva: código de cupo (Electiva I/II/III) → día elegido
+   * (0=Lun..4=Vie) de la electiva real que querés cursar. Sin entrada = sin
+   * preferencia (el simulador busca lo óptimo). */
+  electivePref: Record<string, number>;
   /** Oferta de comisiones del cuatrimestre cargada (opcional). */
   offer: OfferData | null;
 
@@ -72,6 +76,8 @@ export type StoreState = {
   // --- Configuración ---
   updateSettings: (patch: Partial<UserSettings>) => void;
   renameElective: (code: string, name: string) => void;
+  /** Elegí (o limpiá con null) la electiva real para un cupo: día 0=Lun..4=Vie. */
+  setElectivePref: (code: string, day: number | null) => void;
 
   // --- Datos ---
   loadExampleData: () => void;
@@ -138,6 +144,7 @@ export const useStore = create<StoreState>()(
       manualForcedDay: {},
       manualForcedTurno: {},
       simMode: 'auto',
+      electivePref: {},
       offer: baseOffer,
 
       setApproved: (code, grade) =>
@@ -280,6 +287,14 @@ export const useStore = create<StoreState>()(
           electiveNames: { ...s.electiveNames, [code]: name },
         })),
 
+      setElectivePref: (code, day) =>
+        set((s) => {
+          const electivePref = { ...s.electivePref };
+          if (day == null) delete electivePref[code];
+          else electivePref[code] = day;
+          return { electivePref };
+        }),
+
       loadExampleData: () =>
         set(() => ({
           user: stateFromRaw(exampleState as RawState),
@@ -295,6 +310,7 @@ export const useStore = create<StoreState>()(
           manualForcedDay: {},
           manualForcedTurno: {},
           simMode: 'auto',
+          electivePref: {},
           offer: baseOffer,
         })),
 

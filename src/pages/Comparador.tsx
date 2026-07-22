@@ -24,6 +24,7 @@ export function Comparador() {
   const offer = useStore((s) => s.offer);
   const difficultArr = useStore((s) => s.user.difficult);
   const scenarios = useStore((s) => s.scenarios);
+  const electivePref = useStore((s) => s.electivePref);
   const addScenario = useStore((s) => s.addScenario);
   const removeScenario = useStore((s) => s.removeScenario);
   const [name, setName] = useState('');
@@ -48,6 +49,7 @@ export function Comparador() {
         offer,
         difficult,
         sicario: opts.sicario,
+        electivePref,
       });
       return {
         id,
@@ -69,7 +71,7 @@ export function Comparador() {
         compute(sc.id, sc.name, { maxPerTerm: sc.maxPerTerm }, { sicario: sc.sicario }),
       ),
     ];
-  }, [d.loaded, d.pending, d.done, settings, scenarios, offer, difficultArr]);
+  }, [d.loaded, d.pending, d.done, settings, scenarios, offer, difficultArr, electivePref]);
 
   const best = rows.reduce((a, b) => (b.makespan < a.makespan ? b : a), rows[0]);
 

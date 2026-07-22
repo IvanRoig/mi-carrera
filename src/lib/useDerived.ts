@@ -135,10 +135,15 @@ export function useDerived(): Derived {
 export function useSchedule(): ScheduleResult {
   const user = useStore((s) => s.user);
   const offer = useStore((s) => s.offer);
-  return useMemo(() => computeSchedule(user, offer), [user, offer]);
+  const electivePref = useStore((s) => s.electivePref);
+  return useMemo(() => computeSchedule(user, offer, electivePref), [user, offer, electivePref]);
 }
 
-function computeSchedule(user: UserState, offer: ReturnType<typeof useStore.getState>['offer']) {
+function computeSchedule(
+  user: UserState,
+  offer: ReturnType<typeof useStore.getState>['offer'],
+  electivePref: Record<string, number> = {},
+) {
   const includeTaller = user.settings.includeTaller;
   const universe = new Set(
     subjects.map((s) => s.code).filter((c) => includeTaller || c !== TALLER_CODE),
@@ -160,5 +165,6 @@ function computeSchedule(user: UserState, offer: ReturnType<typeof useStore.getS
     offer,
     difficult: new Set(user.difficult),
     scarcity,
+    electivePref,
   });
 }

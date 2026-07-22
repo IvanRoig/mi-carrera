@@ -266,6 +266,7 @@ function AutoView({
   const settings = useStore((s) => s.user.settings);
   const offer = useStore((s) => s.offer);
   const difficultArr = useStore((s) => s.user.difficult);
+  const electivePref = useStore((s) => s.electivePref);
 
   const s = useMemo(() => {
     if (!sicario) return autoSched;
@@ -277,8 +278,9 @@ function AutoView({
       offer,
       difficult: new Set(difficultArr),
       sicario: true,
+      electivePref,
     });
-  }, [sicario, autoSched, d.pending, d.done, settings, offer, difficultArr]);
+  }, [sicario, autoSched, d.pending, d.done, settings, offer, difficultArr, electivePref]);
 
   const chain = new Set(s.criticalChain);
 
@@ -406,6 +408,7 @@ function ManualView() {
   const offer = useStore((s) => s.offer);
   const settings = useStore((s) => s.user.settings);
   const difficultArr = useStore((s) => s.user.difficult);
+  const electivePref = useStore((s) => s.electivePref);
 
   // Drag propio con pointer events (robusto, funciona en celu y no se cancela).
   const [drag, setDrag] = useState<{ code: string; x: number; y: number } | null>(null);
@@ -462,6 +465,7 @@ function ManualView() {
       difficult: new Set(difficultArr),
       preScheduled,
       firstFreeTerm: keep.length,
+      electivePref,
     });
     // Prefijo EXACTO del usuario + solo los cuatris nuevos del resultado.
     const newTerms = [
