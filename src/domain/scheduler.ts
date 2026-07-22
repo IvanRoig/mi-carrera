@@ -192,11 +192,10 @@ function buildResult(
   }
 
   const lastCal = calendarOf(Math.max(0, makespan - 1), settings.startYear, settings.startTerm);
-  const endMonth = lastCal.term === 1 ? 7 : 12;
-  const gradAbsMonth = lastCal.year * 12 + (endMonth - 1) + settings.degreeProcessingMonths;
+  // Egreso = fin del último cuatrimestre (1er cuatri ≈ julio, 2do ≈ diciembre).
   const graduation = {
-    year: Math.floor(gradAbsMonth / 12),
-    month: (gradAbsMonth % 12) + 1,
+    year: lastCal.year,
+    month: lastCal.term === 1 ? 7 : 12,
   };
 
   const pending = new Set([...startByCode.keys()]);

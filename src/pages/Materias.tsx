@@ -160,6 +160,12 @@ export function Materias() {
         ))}
       </div>
 
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        <span className="font-medium text-amber-500">★</span> = materias que marcás
+        como <strong>difíciles</strong> (opcional). Sirve si después querés limitar
+        cuántas difíciles hacer por cuatrimestre en el Simulador.
+      </p>
+
       {showImport && <ImportPanel onClose={() => setShowImport(false)} />}
 
       {/* Lista */}
@@ -247,6 +253,11 @@ function SubjectRow({ code }: { code: string }) {
         {st === 'approved' && grade != null && (
           <span className={`ml-2 font-semibold ${gradeClass(grade)}`}>
             {grade}
+          </span>
+        )}
+        {isDifficult && (
+          <span className="ml-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 ring-1 ring-inset ring-amber-500/30 dark:text-amber-400">
+            ★ difícil
           </span>
         )}
       </td>

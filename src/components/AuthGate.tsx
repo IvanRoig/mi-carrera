@@ -155,8 +155,9 @@ function Landing() {
             Entrar como invitado
           </button>
           <p className="mt-2 text-center text-[11px] text-slate-500">
-            Como invitado, tus datos se guardan solo en este navegador. Con cuenta,
-            se sincronizan en la nube.
+            Como invitado tu progreso <strong>no se guarda</strong> (se pierde al
+            recargar). Creá una cuenta para guardarlo en la nube y usarlo en
+            cualquier dispositivo.
           </p>
         </div>
       </div>

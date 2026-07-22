@@ -22,8 +22,7 @@ function yearsLabel(years: number): string {
 }
 
 export function Simulador() {
-  const [mode, setMode] = useState<'auto' | 'manual'>('auto');
-  const [sicario, setSicario] = useState(false);
+  const [mode, setMode] = useState<'auto' | 'sicario' | 'manual'>('auto');
 
   return (
     <div className="space-y-6">
@@ -31,25 +30,17 @@ export function Simulador() {
         <ModeButton active={mode === 'auto'} onClick={() => setMode('auto')}>
           🤖 Automático
         </ModeButton>
+        <ModeButton active={mode === 'sicario'} onClick={() => setMode('sicario')}>
+          🔪 Sicario (lo antes posible)
+        </ModeButton>
         <ModeButton active={mode === 'manual'} onClick={() => setMode('manual')}>
           ✋ Armado manual
         </ModeButton>
-        {mode === 'auto' && (
-          <label className="ml-2 flex items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/5 px-3 py-2 text-sm">
-            <input
-              type="checkbox"
-              checked={sicario}
-              onChange={(e) => setSicario(e.target.checked)}
-              className="h-4 w-4"
-            />
-            🔪 Modo sicario (máximo por cuatri, todos los turnos)
-          </label>
-        )}
       </div>
 
-      <SettingsBar />
+      <SettingsBar hideCapacity={mode === 'sicario'} />
 
-      {mode === 'auto' ? <AutoView sicario={sicario} /> : <ManualView />}
+      {mode === 'manual' ? <ManualView /> : <AutoView sicario={mode === 'sicario'} />}
     </div>
   );
 }
@@ -170,7 +161,7 @@ function ResultBanner({ s }: { s: ScheduleResult }) {
       <div>
         <div className="text-2xl font-semibold">{formatGraduation(s.graduation)}</div>
         <div className="text-sm text-slate-500 dark:text-slate-400">
-          egreso estimado (con trámite de título)
+          fin de la cursada (aprobando todo)
         </div>
       </div>
       <div className="h-10 w-px bg-slate-300 dark:bg-slate-700" />
