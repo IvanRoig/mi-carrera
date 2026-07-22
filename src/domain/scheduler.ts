@@ -149,7 +149,7 @@ export function schedule(input: ScheduleInput): ScheduleResult {
 
   if (input.pending.size === 0) {
     const r = runSchedule(input, effectiveMax, maps);
-    r.commissionByCode = assignAllCommissions(r, maps);
+    r.commissionByCode = assignAllCommissions(r, maps, input.graph);
     return r;
   }
 
@@ -172,22 +172,51 @@ export function schedule(input: ScheduleInput): ScheduleResult {
   }
 
   const result = runSchedule(input, lo, maps);
-  result.commissionByCode = assignAllCommissions(result, maps);
+  result.commissionByCode = assignAllCommissions(result, maps, input.graph);
   return result;
 }
 
-/** Asigna comisiones sin choques a cada cuatri del resultado final. */
+/** Asigna comisiones sin choques a cada cuatri del resultado final.
+ * Las electivas (3 cupos genéricos, una por día Lun-Vie) se reparten en días
+ * DISTINTOS entre sí a lo largo de todo el plan: así nunca te sugiere la misma
+ * electiva dos veces. */
 function assignAllCommissions(
   result: ScheduleResult,
   maps: ReturnType<typeof buildOfferMaps>,
+  graph: Graph,
 ): Map<string, Commission> {
   const out = new Map<string, Commission>();
   if (!maps.offMapPref) return out;
+  const usedElectiveDays = new Set<number>();
+  const dayOf = (c: Commission) => c.meetings[0]?.day;
+
   result.terms.forEach((t) => {
     const offMap = t.index === 0 ? maps.offMap0! : maps.offMapPref!;
     const offered = t.subjects.filter((c) => (offMap.get(c)?.commissions.length ?? 0) > 0);
-    const asg = findConflictFreeAssignment(offered, offMap);
-    if (asg) for (const [code, comm] of asg) out.set(code, comm);
+    const electives = offered.filter((c) => graph.byCode.get(c)?.isElective);
+    const others = offered.filter((c) => !graph.byCode.get(c)?.isElective);
+
+    // 1) Materias normales: asignación sin choques (como siempre).
+    const asg = findConflictFreeAssignment(others, offMap);
+    const taken: Commission[] = [];
+    if (asg) for (const [code, comm] of asg) { out.set(code, comm); taken.push(comm); }
+
+    // 2) Electivas: preferir un día que NINGUNA otra electiva ya usó (global) y
+    //    que no choque con lo del cuatri; si no hay, cualquiera sin choque.
+    for (const c of electives) {
+      const comms = offMap.get(c)?.commissions ?? [];
+      const free = (cm: Commission) => !taken.some((u) => commissionsOverlap(u, cm));
+      const pick =
+        comms.find((cm) => free(cm) && dayOf(cm) != null && !usedElectiveDays.has(dayOf(cm)!)) ??
+        comms.find(free) ??
+        comms[0];
+      if (pick) {
+        out.set(c, pick);
+        taken.push(pick);
+        const d = dayOf(pick);
+        if (d != null) usedElectiveDays.add(d);
+      }
+    }
   });
   return out;
 }

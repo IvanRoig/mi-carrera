@@ -298,7 +298,16 @@ export const useStore = create<StoreState>()(
           offer: baseOffer,
         })),
 
-      importFullState: (state) => set(() => ({ ...state })),
+      importFullState: (state) =>
+        set(() => {
+          // La oferta base viene del código (se actualiza con la app). Si lo que
+          // trae el estado guardado es una base (posiblemente vieja) o no trae
+          // oferta, usamos SIEMPRE la base actual. Solo respetamos una oferta
+          // subida por el usuario (otro `cuatrimestre`).
+          const incoming = state.offer;
+          const isBase = !incoming || incoming.cuatrimestre?.startsWith('Oferta base');
+          return { ...state, offer: isBase ? baseOffer : incoming };
+        }),
 
       addScenario: (sc) =>
         set((s) => ({

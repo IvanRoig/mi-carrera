@@ -15,6 +15,10 @@ export type ExportableState = Pick<
 >;
 
 export function pickExportable(s: StoreState): ExportableState {
+  // No guardamos la oferta base (viene del código y se actualiza con la app):
+  // guardarla congelaría una versión vieja. Solo persistimos una oferta subida
+  // por el usuario (identificada por tener otro `cuatrimestre`).
+  const isBaseOffer = !s.offer || s.offer.cuatrimestre?.startsWith('Oferta base');
   return {
     user: s.user,
     electiveNames: s.electiveNames,
@@ -22,7 +26,7 @@ export function pickExportable(s: StoreState): ExportableState {
     manualTerms: s.manualTerms,
     manualForcedDay: s.manualForcedDay,
     manualForcedTurno: s.manualForcedTurno,
-    offer: s.offer,
+    offer: isBaseOffer ? null : s.offer,
   };
 }
 
