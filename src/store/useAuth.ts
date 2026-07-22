@@ -93,7 +93,14 @@ export const useAuth = create<AuthState>((set, get) => ({
   signUp: async (email, password) => {
     if (!supabase) return;
     set({ error: null, info: null });
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // El link de confirmación vuelve a ESTA app (donde te registraste), no al
+    // localhost por defecto de Supabase.
+    const emailRedirectTo = `${location.origin}${location.pathname}`;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo },
+    });
     if (error) {
       set({ error: translateError(error.message) });
       return;
