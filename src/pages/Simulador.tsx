@@ -362,7 +362,7 @@ function ManualView() {
   const manualTerms = useStore((s) => s.manualTerms);
   const manualForcedDay = useStore((s) => s.manualForcedDay);
   const manualForcedTurno = useStore((s) => s.manualForcedTurno);
-  const setManualTerms = useStore((s) => s.setManualTerms);
+  const seedManual = useStore((s) => s.seedManual);
   const moveToManualTerm = useStore((s) => s.moveToManualTerm);
   const placeOnSlot = useStore((s) => s.placeOnSlot);
   const addManualTerm = useStore((s) => s.addManualTerm);
@@ -400,34 +400,38 @@ function ManualView() {
     [d.done, manualTerms, settings, offer, difficultArr, manualForcedDay, manualForcedTurno],
   );
 
-  function seedFromAuto() {
-    setManualTerms(autoSched.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
+  // Fija el día/turno de cada materia según la comisión que le asignó el
+  // scheduler (así en el manual quedan estables y no se reordenan solas).
+  function forcedFromSchedule(sched: ScheduleResult) {
+    const fd: Record<string, number> = {};
+    const ft: Record<string, 'm' | 't' | 'n'> = {};
+    for (const [code, comm] of sched.commissionByCode) {
+      const m = [...comm.meetings].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))[0];
+      if (m) {
+        fd[code] = m.day;
+        ft[code] = turnoOf(toMinutes(m.start));
+      }
+    }
+    return { fd, ft };
   }
 
-  const sameSubjects = (a: string[], b: string[]) => {
-    if (a.length !== b.length) return false;
-    const setB = new Set(b);
-    return a.every((c) => setB.has(c));
-  };
+  function seedFromAuto() {
+    const { fd, ft } = forcedFromSchedule(autoSched);
+    seedManual(
+      autoSched.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })),
+      fd,
+      ft,
+    );
+  }
 
-  // Deja fijos los cuatris 0..keepUpTo (incluido) y autocompleta el resto,
-  // descartando y recalculando lo que venía después.
+  // Deja fijos los cuatris 0..keepUpTo (incluido) TAL CUAL están (materias y días)
+  // y autocompleta SOLO los siguientes.
   function autocompleteFrom(keepUpTo: number) {
     const keep = manualTerms.slice(0, keepUpTo + 1);
-    // Consistencia: si lo que fijaste coincide con el automático, usamos el
-    // automático completo (así "completar desde acá" == "sembrar" cuando no cambiaste nada).
-    const matchesAuto =
-      keep.length <= autoSched.terms.length &&
-      keep.every((t, i) => sameSubjects(t.subjects, autoSched.terms[i].subjects));
-    if (matchesAuto) {
-      setManualTerms(
-        autoSched.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })),
-      );
-      return;
-    }
     const preScheduled = new Map<string, number>();
     keep.forEach((t, i) => t.subjects.forEach((c) => preScheduled.set(c, i)));
-    const remaining = new Set([...d.pending].filter((c) => !preScheduled.has(c)));
+    const prefixCodes = new Set([...preScheduled.keys()]);
+    const remaining = new Set([...d.pending].filter((c) => !prefixCodes.has(c)));
     const res = schedule({
       graph,
       pending: remaining,
@@ -438,7 +442,24 @@ function ManualView() {
       preScheduled,
       firstFreeTerm: keep.length,
     });
-    setManualTerms(res.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
+    // Prefijo EXACTO del usuario + solo los cuatris nuevos del resultado.
+    const newTerms = [
+      ...keep.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })),
+      ...res.terms
+        .slice(keep.length)
+        .map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })),
+    ];
+    // Días fijados: conservar los del prefijo, agregar los de la parte nueva.
+    const fd: Record<string, number> = {};
+    const ft: Record<string, 'm' | 't' | 'n'> = {};
+    for (const c of prefixCodes) {
+      if (manualForcedDay[c] !== undefined) fd[c] = manualForcedDay[c];
+      if (manualForcedTurno[c] !== undefined) ft[c] = manualForcedTurno[c];
+    }
+    const compl = forcedFromSchedule(res);
+    for (const [c, day] of Object.entries(compl.fd)) if (!prefixCodes.has(c)) fd[c] = day;
+    for (const [c, tt] of Object.entries(compl.ft)) if (!prefixCodes.has(c)) ft[c] = tt;
+    seedManual(newTerms, fd, ft);
   }
 
   function autocompleteRest() {

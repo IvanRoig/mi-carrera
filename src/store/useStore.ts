@@ -81,6 +81,12 @@ export type StoreState = {
 
   // --- Simulador manual ---
   setManualTerms: (terms: ManualTerm[]) => void;
+  /** Setea el plan manual fijando el día/turno de cada materia (estable). */
+  seedManual: (
+    terms: ManualTerm[],
+    forcedDay: Record<string, number>,
+    forcedTurno: Record<string, 'm' | 't' | 'n'>,
+  ) => void;
   moveToManualTerm: (code: string, termId: string | null) => void;
   /** Coloca una materia en un cuatri y un día específico (elige la comisión de
    * ese día; si no hay, la deja "forzada" a ese día con aviso). */
@@ -301,6 +307,9 @@ export const useStore = create<StoreState>()(
 
       setManualTerms: (terms) =>
         set(() => ({ manualTerms: terms, manualForcedDay: {}, manualForcedTurno: {} })),
+
+      seedManual: (terms, forcedDay, forcedTurno) =>
+        set(() => ({ manualTerms: terms, manualForcedDay: forcedDay, manualForcedTurno: forcedTurno })),
 
       moveToManualTerm: (code, termId) =>
         set((s) => {
