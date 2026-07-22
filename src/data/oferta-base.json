@@ -1,0 +1,4399 @@
+{
+  "cuatrimestre": "Oferta base (2C-2026)",
+  "nota": "Oferta precargada extraída de la intraconsulta. El usuario puede subir una actualizada que la sobreescribe.",
+  "offerings": [
+    {
+      "code": "00901",
+      "name": "INGLES NIVEL I",
+      "commissions": [
+        {
+          "id": "1300",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu08a12"
+        },
+        {
+          "id": "1600",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu14a18"
+        },
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4600",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju14a18"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        },
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        },
+        {
+          "id": "6300",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa08a12"
+        },
+        {
+          "id": "7275",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "12:00",
+              "end": "14:00"
+            },
+            {
+              "day": 4,
+              "start": "12:00",
+              "end": "14:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "MaVi12a14"
+        },
+        {
+          "id": "7554",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "12:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi12a16"
+        },
+        {
+          "id": "7664",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "12:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa12a16"
+        }
+      ]
+    },
+    {
+      "code": "00902",
+      "name": "INGLES NIVEL II",
+      "commissions": [
+        {
+          "id": "1300",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu08a12"
+        },
+        {
+          "id": "1600",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu14a18"
+        },
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4600",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju14a18"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        },
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        },
+        {
+          "id": "6300",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa08a12"
+        },
+        {
+          "id": "7224",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "12:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma12a16"
+        },
+        {
+          "id": "7444",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "12:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju12a16"
+        },
+        {
+          "id": "7664",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "12:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa12a16"
+        },
+        {
+          "id": "8184",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "17:00",
+              "end": "19:00"
+            },
+            {
+              "day": 3,
+              "start": "17:00",
+              "end": "19:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "LuJu17a19"
+        }
+      ]
+    },
+    {
+      "code": "00903",
+      "name": "INGLES NIVEL III",
+      "commissions": [
+        {
+          "id": "1200",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu10a12"
+        },
+        {
+          "id": "1700",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "21:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a21"
+        },
+        {
+          "id": "2100",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "10:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma08a10"
+        },
+        {
+          "id": "2200",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma10a12"
+        },
+        {
+          "id": "2400",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma14a16"
+        },
+        {
+          "id": "2500",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "16:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma16a18"
+        },
+        {
+          "id": "2700",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "21:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a21"
+        },
+        {
+          "id": "2800",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "21:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma21a23"
+        },
+        {
+          "id": "3100",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "10:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi08a10"
+        },
+        {
+          "id": "3200",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi10a12"
+        },
+        {
+          "id": "3500",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "16:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi16a18"
+        },
+        {
+          "id": "4100",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "10:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju08a10"
+        },
+        {
+          "id": "4200",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju10a12"
+        },
+        {
+          "id": "4400",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju14a16"
+        },
+        {
+          "id": "4500",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "16:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju16a18"
+        },
+        {
+          "id": "4700",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "21:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju19a21"
+        },
+        {
+          "id": "4800",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "21:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju21a23"
+        },
+        {
+          "id": "5100",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "10:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi08a10"
+        },
+        {
+          "id": "5400",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi14a16"
+        },
+        {
+          "id": "5500",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "16:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi16a18"
+        },
+        {
+          "id": "5700",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "21:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi19a21"
+        },
+        {
+          "id": "5800",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "21:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi21a23"
+        },
+        {
+          "id": "6100",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "10:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa08a10"
+        },
+        {
+          "id": "6200",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa10a12"
+        },
+        {
+          "id": "6400",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "14:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa14a16"
+        },
+        {
+          "id": "7300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "12:00",
+              "end": "14:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi12a14"
+        },
+        {
+          "id": "7600",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "12:00",
+              "end": "14:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa12a14"
+        }
+      ]
+    },
+    {
+      "code": "00904",
+      "name": "INGLES NIVEL IV",
+      "commissions": [
+        {
+          "id": "1100",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "08:00",
+              "end": "10:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu08a10"
+        },
+        {
+          "id": "1400",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu14a16"
+        },
+        {
+          "id": "1500",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "16:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu16a18"
+        },
+        {
+          "id": "1800",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "21:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu21a23"
+        },
+        {
+          "id": "2100",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "10:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma08a10"
+        },
+        {
+          "id": "2200",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma10a12"
+        },
+        {
+          "id": "2700",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "21:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a21"
+        },
+        {
+          "id": "2800",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "21:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma21a23"
+        },
+        {
+          "id": "3100",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "10:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi08a10"
+        },
+        {
+          "id": "3200",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi10a12"
+        },
+        {
+          "id": "3400",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi14a16"
+        },
+        {
+          "id": "3700",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "21:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi19a21"
+        },
+        {
+          "id": "3800",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "21:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi21a23"
+        },
+        {
+          "id": "4100",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "10:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju08a10"
+        },
+        {
+          "id": "4200",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju10a12"
+        },
+        {
+          "id": "4400",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju14a16"
+        },
+        {
+          "id": "4500",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "16:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju16a18"
+        },
+        {
+          "id": "4700",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "21:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju19a21"
+        },
+        {
+          "id": "4800",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "21:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju21a23"
+        },
+        {
+          "id": "5200",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi10a12"
+        },
+        {
+          "id": "5700",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "21:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi19a21"
+        },
+        {
+          "id": "5800",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "21:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi21a23"
+        },
+        {
+          "id": "6100",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "10:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa08a10"
+        },
+        {
+          "id": "6200",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa10a12"
+        },
+        {
+          "id": "6400",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "14:00",
+              "end": "16:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa14a16"
+        },
+        {
+          "id": "7600",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "12:00",
+              "end": "14:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa12a14"
+        }
+      ]
+    },
+    {
+      "code": "00911",
+      "name": "COMPUTACION NIVEL I",
+      "commissions": [
+        {
+          "id": "1300",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu08a12"
+        },
+        {
+          "id": "1600",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu14a18"
+        },
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4600",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju14a18"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        },
+        {
+          "id": "6300",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Sa08a12"
+        },
+        {
+          "id": "6900",
+          "meetings": [],
+          "modality": "distancia",
+          "campus": "San Justo",
+          "raw": "A distancia"
+        }
+      ]
+    },
+    {
+      "code": "00912",
+      "name": "COMPUTACION NIVEL II",
+      "commissions": [
+        {
+          "id": "1300",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu08a12"
+        },
+        {
+          "id": "1600",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu14a18"
+        },
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        },
+        {
+          "id": "6300",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Sa08a12"
+        },
+        {
+          "id": "6900",
+          "meetings": [],
+          "modality": "distancia",
+          "campus": "San Justo",
+          "raw": "A distancia"
+        }
+      ]
+    },
+    {
+      "code": "03621",
+      "name": "MATEMATICA DISCRETA",
+      "commissions": [
+        {
+          "id": "1300",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu08a12"
+        },
+        {
+          "id": "1600",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu14a18"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "4600",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju14a18"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        },
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        }
+      ]
+    },
+    {
+      "code": "03622",
+      "name": "ANALISIS MATEMATICO I",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        },
+        {
+          "id": "6300",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Sa08a12"
+        }
+      ]
+    },
+    {
+      "code": "03623",
+      "name": "PROGRAMACION INICIAL",
+      "commissions": [
+        {
+          "id": "1300",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu08a12"
+        },
+        {
+          "id": "1600",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu14a18"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4600",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju14a18"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "6300",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa08a12"
+        }
+      ]
+    },
+    {
+      "code": "03624",
+      "name": "INTRODUCCION A LOS SISTEMAS DE INFORMACION",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        }
+      ]
+    },
+    {
+      "code": "03625",
+      "name": "SISTEMAS DE NUMERACION",
+      "commissions": [
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        },
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03626",
+      "name": "PRINCIPIOS DE CALIDAD DE SOFTWARE",
+      "commissions": [
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03627",
+      "name": "ALGEBRA Y GEOMETRIA ANALITICA I",
+      "commissions": [
+        {
+          "id": "1300",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu08a12"
+        },
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4600",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju14a18"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03628",
+      "name": "FISICA I",
+      "commissions": [
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        }
+      ]
+    },
+    {
+      "code": "03629",
+      "name": "PROGRAMACION ESTRUCTURADA BASICA",
+      "commissions": [
+        {
+          "id": "1300",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu08a12"
+        },
+        {
+          "id": "1600",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu14a18"
+        },
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4600",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju14a18"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03630",
+      "name": "INTRODUCCION A LA GESTION DE REQUISITOS",
+      "commissions": [
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        }
+      ]
+    },
+    {
+      "code": "03631",
+      "name": "FUNDAMENTOS DE SISTEMAS EMBEBIDOS",
+      "commissions": [
+        {
+          "id": "1300",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu08a12"
+        },
+        {
+          "id": "1600",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu14a18"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        }
+      ]
+    },
+    {
+      "code": "03632",
+      "name": "INTRODUCCION A LOS PROYECTOS INFORMATICOS",
+      "commissions": [
+        {
+          "id": "1600",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu14a18"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "4600",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju14a18"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        },
+        {
+          "id": "6300",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Sa08a12"
+        }
+      ]
+    },
+    {
+      "code": "03633",
+      "name": "ANALISIS MATEMATICO II",
+      "commissions": [
+        {
+          "id": "1600",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu14a18"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03634",
+      "name": "FISICA II",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        }
+      ]
+    },
+    {
+      "code": "03635",
+      "name": "TOPICOS DE PROGRAMACION",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        },
+        {
+          "id": "6300",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Sa08a12"
+        }
+      ]
+    },
+    {
+      "code": "03636",
+      "name": "BASES DE DATOS",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "6300",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Sa08a12"
+        }
+      ]
+    },
+    {
+      "code": "03637",
+      "name": "ANALISIS DE SISTEMAS",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        }
+      ]
+    },
+    {
+      "code": "03638",
+      "name": "ARQUITECTURA DE COMPUTADORAS",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2600",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma14a18"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        },
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03639",
+      "name": "ANALISIS MATEMATICO III",
+      "commissions": [
+        {
+          "id": "2300",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma08a12"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03640",
+      "name": "ALGORITMOS Y ESTRUCTURAS DE DATOS",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "Ituzaingo",
+          "raw": "Mi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03641",
+      "name": "BASES DE DATOS APLICADAS",
+      "commissions": [
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        }
+      ]
+    },
+    {
+      "code": "03642",
+      "name": "PRINCIPIOS DE DISE�O DE SISTEMAS",
+      "commissions": [
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        }
+      ]
+    },
+    {
+      "code": "03643",
+      "name": "REDES DE COMPUTADORAS",
+      "commissions": [
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03644",
+      "name": "GESTION DE LAS ORGANIZACIONES",
+      "commissions": [
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        }
+      ]
+    },
+    {
+      "code": "03645",
+      "name": "ALGEBRA Y GEOMETRIA ANALITICA II",
+      "commissions": [
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "6300",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Sa08a12"
+        }
+      ]
+    },
+    {
+      "code": "03646",
+      "name": "PARADIGMAS DE PROGRAMACION",
+      "commissions": [
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03647",
+      "name": "REQUISITOS AVANZADOS",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        }
+      ]
+    },
+    {
+      "code": "03648",
+      "name": "DISE�O DE SOFTWARE",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        }
+      ]
+    },
+    {
+      "code": "03649",
+      "name": "SISTEMAS OPERATIVOS",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        }
+      ]
+    },
+    {
+      "code": "03650",
+      "name": "SEGURIDAD DE LA INFORMACION",
+      "commissions": [
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03651",
+      "name": "PROBABILIDAD Y ESTADISTICA",
+      "commissions": [
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "4300",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju08a12"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        }
+      ]
+    },
+    {
+      "code": "03652",
+      "name": "PROGRAMACION AVANZADA",
+      "commissions": [
+        {
+          "id": "4600",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju14a18"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        }
+      ]
+    },
+    {
+      "code": "03653",
+      "name": "ARQUITECTURA DE SISTEMAS SOFTWARE",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        }
+      ]
+    },
+    {
+      "code": "03654",
+      "name": "VIRTUALIZACION DE HARDWARE",
+      "commissions": [
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        }
+      ]
+    },
+    {
+      "code": "03655",
+      "name": "AUDITORIA Y LEGISLACION",
+      "commissions": [
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        }
+      ]
+    },
+    {
+      "code": "03656",
+      "name": "ESTADISTICA APLICADA",
+      "commissions": [
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        }
+      ]
+    },
+    {
+      "code": "03657",
+      "name": "AUTOMATAS Y GRAMATICAS",
+      "commissions": [
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03658",
+      "name": "PROGRAMACION CONCURRENTE",
+      "commissions": [
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03659",
+      "name": "GESTION APLICADA AL DESARROLLO DE SOFTWARE I",
+      "commissions": [
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        }
+      ]
+    },
+    {
+      "code": "03660",
+      "name": "SISTEMAS OPERATIVOS AVANZADOS",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        }
+      ]
+    },
+    {
+      "code": "03661",
+      "name": "GESTION DE PROYECTOS",
+      "commissions": [
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03662",
+      "name": "MATEMATICA APLICADA",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        }
+      ]
+    },
+    {
+      "code": "03663",
+      "name": "LENGUAJES Y COMPILADORES",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        }
+      ]
+    },
+    {
+      "code": "03664",
+      "name": "INTELIGENCIA ARTIFICIAL",
+      "commissions": [
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03665",
+      "name": "GESTION APLICADA AL DESARROLLO DE SOFTWARE II",
+      "commissions": [
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        }
+      ]
+    },
+    {
+      "code": "03666",
+      "name": "SEGURIDAD APLICADA Y FORENSIA",
+      "commissions": [
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        }
+      ]
+    },
+    {
+      "code": "03667",
+      "name": "GESTION DE LA CALIDAD EN PROCESOS DE SISTEMAS",
+      "commissions": [
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        }
+      ]
+    },
+    {
+      "code": "03668",
+      "name": "INTELIGENCIA ARTIFICIAL APLICADA",
+      "commissions": [
+        {
+          "id": "5900",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi19a23"
+        }
+      ]
+    },
+    {
+      "code": "03669",
+      "name": "INNOVACION Y EMPRENDEDORISMO",
+      "commissions": [
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "distancia",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        }
+      ]
+    },
+    {
+      "code": "03670",
+      "name": "CIENCIA DE DATOS",
+      "commissions": [
+        {
+          "id": "4900",
+          "meetings": [
+            {
+              "day": 3,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Ju19a23"
+        }
+      ]
+    },
+    {
+      "code": "03671",
+      "name": "Proyecto Final de Carrera",
+      "commissions": [
+        {
+          "id": "sabado-tarde",
+          "meetings": [
+            {
+              "day": 5,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "semipresencial"
+        }
+      ]
+    },
+    {
+      "code": "03675",
+      "name": "PRACTICA PROFESIONAL SUPERVISADA",
+      "commissions": [
+        {
+          "id": "5600",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "distancia",
+          "campus": "San Justo",
+          "raw": "Vi14a18"
+        }
+      ]
+    },
+    {
+      "code": "03676",
+      "name": "RESPONSABILIDAD SOCIAL UNIVERSITARIA",
+      "commissions": [
+        {
+          "id": "1900",
+          "meetings": [
+            {
+              "day": 0,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Lu19a23"
+        },
+        {
+          "id": "2900",
+          "meetings": [
+            {
+              "day": 1,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Ma19a23"
+        },
+        {
+          "id": "3300",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi08a12"
+        },
+        {
+          "id": "3600",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "14:00",
+              "end": "18:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Mi14a18"
+        },
+        {
+          "id": "3900",
+          "meetings": [
+            {
+              "day": 2,
+              "start": "19:00",
+              "end": "23:00"
+            }
+          ],
+          "modality": "semipresencial",
+          "campus": "San Justo",
+          "raw": "Mi19a23"
+        },
+        {
+          "id": "5300",
+          "meetings": [
+            {
+              "day": 4,
+              "start": "08:00",
+              "end": "12:00"
+            }
+          ],
+          "modality": "presencial",
+          "campus": "San Justo",
+          "raw": "Vi08a12"
+        }
+      ]
+    }
+  ]
+}

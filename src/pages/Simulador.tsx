@@ -10,23 +10,16 @@ import { Badge } from '@/components/Badge';
 import { formatGraduation, termLabel, trackColor } from '@/lib/ui';
 import { validateManualPlan } from '@/domain/manual';
 import { schedule, calendarOf, type ScheduleResult } from '@/domain/scheduler';
-import { TALLER_CODE } from '@/domain/types';
 import {
   offeringMap,
+  commissionFitsAvailability,
+  isNightCommission,
   DAY_SHORT,
   type Commission,
-  type OfferData,
+  type Offering,
 } from '@/domain/conflicts';
 
 const PFC = '03671';
-
-/** Texto corto de una comisión: días/horario + modalidad. */
-function fmtCommission(c: Commission): string {
-  const mod = c.modality;
-  if (c.meetings.length === 0) return `a distancia · ${mod}`;
-  const days = c.meetings.map((m) => `${DAY_SHORT[m.day]} ${m.start}–${m.end}`).join(' + ');
-  return `${days} · ${mod}`;
-}
 
 function yearsLabel(years: number): string {
   if (years <= 0) return '—';
@@ -36,11 +29,46 @@ function yearsLabel(years: number): string {
   return half ? `${whole} años y medio` : `${whole} año${whole === 1 ? '' : 's'}`;
 }
 
+/** Comisión representativa: prioriza tu disponibilidad, si no la noche, si no la 1°. */
+function pickCommission(o: Offering, availableSlots: Set<string> | null): Commission | undefined {
+  if (o.commissions.length === 0) return undefined;
+  if (availableSlots) {
+    const fit = o.commissions.find((c) => commissionFitsAvailability(c, availableSlots));
+    if (fit) return fit;
+  }
+  return o.commissions.find((c) => isNightCommission(c)) ?? o.commissions[0];
+}
+
+/** Agrupa las materias de un cuatri por día (según la comisión representativa). */
+function groupByDay(
+  codes: string[],
+  offMap: Map<string, Offering> | null,
+  availableSlots: Set<string> | null,
+) {
+  const cols = new Map<number, { code: string; time: string }[]>();
+  for (let d = 0; d < 6; d++) cols.set(d, []);
+  const noDay: string[] = [];
+  for (const code of codes) {
+    const o = offMap?.get(code);
+    const comm = o ? pickCommission(o, availableSlots) : undefined;
+    if (comm && comm.meetings.length) {
+      const seen = new Set<number>();
+      for (const m of comm.meetings) {
+        if (seen.has(m.day) || m.day > 5) continue;
+        seen.add(m.day);
+        cols.get(m.day)!.push({ code, time: `${m.start}` });
+      }
+    } else {
+      noDay.push(code);
+    }
+  }
+  return { cols, noDay };
+}
+
 export function Simulador() {
   const [mode, setMode] = useState<'auto' | 'sicario' | 'manual'>('auto');
   const setManualTerms = useStore((s) => s.setManualTerms);
 
-  // Pasa el plan automático al modo manual para editarlo a mano.
   const editInManual = (terms: { subjects: string[] }[]) => {
     setManualTerms(terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
     setMode('manual');
@@ -95,6 +123,117 @@ function ModeButton({
   );
 }
 
+/* ---------------- Chip de materia ---------------- */
+
+function MateriaChip({
+  code,
+  time,
+  chain,
+  continuing,
+  draggable,
+  onDragStart,
+  onDragEnd,
+  invalid,
+}: {
+  code: string;
+  time?: string;
+  chain?: Set<string>;
+  continuing?: boolean;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  invalid?: boolean;
+}) {
+  const name = useSubjectName();
+  const s = getSubject(code)!;
+  const isPFC = code === PFC;
+  const border = isPFC ? '#fb923c' : chain?.has(code) ? '#3479f6' : trackColor(s.track);
+  return (
+    <div
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      title={name(code)}
+      className={`rounded-md border-l-4 bg-slate-50 px-1.5 py-1 text-[11px] leading-tight dark:bg-slate-800/60 ${
+        draggable ? 'cursor-grab active:cursor-grabbing' : ''
+      } ${invalid ? 'ring-1 ring-rose-400' : ''} ${
+        s.isElective ? 'border border-dashed border-slate-300 dark:border-slate-600' : ''
+      }`}
+      style={{ borderLeftColor: border }}
+    >
+      <div className="font-medium">
+        {s.isElective && '◌ '}
+        {name(code)}
+      </div>
+      <div className="text-[9px] text-slate-500 dark:text-slate-400">
+        {continuing ? 'continúa (anual)' : time ? `🕒 ${time}` : 'a distancia'}
+        {chain?.has(code) && !continuing && ' · crítica'}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Grilla de un cuatri por día ---------------- */
+
+function TermGrid({
+  codes,
+  continuing = [],
+  offMap,
+  availableSlots,
+  chain,
+  drag,
+}: {
+  codes: string[];
+  continuing?: string[];
+  offMap: Map<string, Offering> | null;
+  availableSlots: Set<string> | null;
+  chain?: Set<string>;
+  drag?: {
+    onDragStart: (code: string) => (e: React.DragEvent) => void;
+    onDragEnd: () => void;
+    invalidCodes?: Set<string>;
+  };
+}) {
+  const contSet = new Set(continuing);
+  const groups = groupByDay([...codes, ...continuing], offMap, availableSlots);
+  const days = [0, 1, 2, 3, 4, 5];
+
+  const renderChip = (code: string, time?: string) => (
+    <MateriaChip
+      key={code}
+      code={code}
+      time={time}
+      chain={chain}
+      continuing={contSet.has(code)}
+      draggable={!!drag}
+      onDragStart={drag?.onDragStart(code)}
+      onDragEnd={drag?.onDragEnd}
+      invalid={drag?.invalidCodes?.has(code)}
+    />
+  );
+
+  return (
+    <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] gap-1.5">
+      {days.map((d) => (
+        <div key={d} className="min-w-0">
+          <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">
+            {DAY_SHORT[d]}
+          </div>
+          <div className="space-y-1">
+            {groups.cols.get(d)!.map((it) => renderChip(it.code, it.time))}
+          </div>
+        </div>
+      ))}
+      <div className="min-w-0">
+        <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">
+          Distancia
+        </div>
+        <div className="space-y-1">{groups.noDay.map((code) => renderChip(code))}</div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Vista automática ---------------- */
 
 function AutoView({
@@ -124,6 +263,7 @@ function AutoView({
 
   const chain = new Set(s.criticalChain);
   const offMap = useMemo(() => (offer ? offeringMap(offer) : null), [offer]);
+  const availSet = settings.restrictAvailability ? new Set(settings.availableSlots) : null;
 
   if (s.terms.length === 0) {
     return (
@@ -134,22 +274,20 @@ function AutoView({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {sicario && (
         <p className="rounded-lg border border-rose-400/40 bg-rose-500/5 px-4 py-2 text-sm text-rose-700 dark:text-rose-300">
-          🔪 <strong>Modo sicario:</strong> mete la mayor cantidad de materias
-          posible por cuatri (usando todos los turnos) para recibirte lo antes
-          posible. {offer ? 'Respeta los choques de horario de la oferta cargada en el 1er cuatri.' : 'Cargá la oferta para evitar choques de día/horario reales.'}
+          🔪 <strong>Modo sicario:</strong> arma los cuatris para recibirte lo antes
+          posible (usando todos los turnos), respetando choques de horario.
         </p>
       )}
       <ResultBanner s={s} />
 
-      {/* Pasar a manual para editar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          ¿Querés cambiar algo? (mover una materia a otro cuatri, sacar o adelantar
-          alguna). Pasá este plan al <strong>modo manual</strong> y editalo libre:
-          se siguen validando correlativas, cupos de horario y choques.
+          ¿Querés cambiar algo? (mover una materia, sacar o adelantar alguna). Pasá
+          este plan al <strong>modo manual</strong> y editalo libre: se siguen
+          validando correlativas, cupos de horario y choques.
         </p>
         <button
           onClick={() => onEditManual(s.terms)}
@@ -159,38 +297,33 @@ function AutoView({
         </button>
       </div>
 
-      {!offer && (
-        <p className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-          💡 Cargá la oferta (solapa <strong>Oferta</strong>) para ver el día,
-          horario y modalidad de cada materia, y para que respete tu disponibilidad.
-        </p>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="space-y-3">
         {s.terms.map((t) => {
-          // Materias anuales que arrancaron el cuatri anterior y siguen acá.
           const continuing = [...s.startByCode.entries()]
             .filter(([c, st]) => st === t.index - 1 && getSubject(c)?.annual)
             .map(([c]) => c);
           return (
-            <TermCard
+            <div
               key={t.index}
-              title={termLabel(t.term, t.year)}
-              subtitle={`${t.subjects.length} materias · ${t.totalHours} hs`}
-              codes={t.subjects}
-              continuing={continuing}
-              chain={chain}
-              offer={offer}
-            />
+              className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div className="mb-2 flex items-baseline justify-between">
+                <h4 className="font-semibold">{termLabel(t.term, t.year)}</h4>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  {t.subjects.length} materias · {t.totalHours} hs
+                </span>
+              </div>
+              <TermGrid
+                codes={t.subjects}
+                continuing={continuing}
+                offMap={offMap}
+                availableSlots={availSet}
+                chain={chain}
+              />
+            </div>
           );
         })}
       </div>
-      {offMap && (
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Día/horario/modalidad tomados de la oferta cargada. En cuatris futuros
-          la oferta puede cambiar; sirven como referencia.
-        </p>
-      )}
       <Legenda />
     </div>
   );
@@ -200,14 +333,13 @@ function Legenda() {
   return (
     <p className="text-xs text-slate-500 dark:text-slate-400">
       <span className="mr-3">
-        <span className="inline-block h-2 w-3 rounded-sm bg-brand-500 align-middle" />{' '}
-        ruta crítica (destraba el egreso)
+        <span className="inline-block h-2 w-3 rounded-sm bg-brand-500 align-middle" /> ruta crítica
       </span>
       <span className="mr-3">
-        <span className="inline-block h-2 w-3 rounded-sm bg-orange-400 align-middle" />{' '}
-        Proyecto Final
+        <span className="inline-block h-2 w-3 rounded-sm bg-orange-400 align-middle" /> Proyecto Final
       </span>
-      <span>◌ electiva</span>
+      <span className="mr-3">◌ electiva</span>
+      <span>Día/horario según la oferta cargada (referencia para cuatris futuros).</span>
     </p>
   );
 }
@@ -239,86 +371,6 @@ function ResultBanner({ s }: { s: ScheduleResult }) {
   );
 }
 
-function TermCard({
-  title,
-  subtitle,
-  codes,
-  continuing = [],
-  chain,
-  offer,
-}: {
-  title: string;
-  subtitle: string;
-  codes: string[];
-  continuing?: string[];
-  chain: Set<string>;
-  offer?: OfferData | null;
-}) {
-  const name = useSubjectName();
-  const offMap = offer ? offeringMap(offer) : null;
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="mb-2 flex items-baseline justify-between">
-        <h4 className="font-semibold">{title}</h4>
-        <span className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</span>
-      </div>
-      {continuing.map((c) => (
-        <div
-          key={c}
-          className="mb-1.5 rounded-lg border-l-4 border-dashed bg-orange-500/5 px-2.5 py-1.5 text-sm"
-          style={{ borderLeftColor: '#fb923c' }}
-        >
-          <span className="font-medium">{name(c)}</span>
-          <span className="ml-1 text-[10px] text-orange-500">· continúa (anual)</span>
-        </div>
-      ))}
-      <ul className="space-y-1.5">
-        {codes.map((code) => {
-          const s = getSubject(code)!;
-          const inChain = chain.has(code);
-          const isPFC = code === PFC;
-          const borderColor = isPFC ? '#fb923c' : inChain ? '#3479f6' : trackColor(s.track);
-          return (
-            <li
-              key={code}
-              className={`rounded-lg border-l-4 bg-slate-50 px-2.5 py-1.5 text-sm dark:bg-slate-800/50 ${
-                s.isElective ? 'border border-dashed border-slate-300 dark:border-slate-600' : ''
-              }`}
-              style={{ borderLeftColor: borderColor }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-medium leading-tight">
-                  {s.isElective && '◌ '}
-                  {name(code)}
-                </span>
-                <span className="shrink-0 font-mono text-[10px] text-slate-400">{s.code}</span>
-              </div>
-              <div className="flex gap-1 text-[10px]">
-                {inChain && <span className="font-medium text-brand-500">ruta crítica</span>}
-                {isPFC && <span className="font-medium text-orange-500">Proyecto Final</span>}
-                {s.annual && <span className="text-orange-400">· anual</span>}
-                {code === TALLER_CODE && <span className="text-slate-400">· optativa</span>}
-              </div>
-              {offMap &&
-                (() => {
-                  const o = offMap.get(code);
-                  if (!o || o.commissions.length === 0) return null;
-                  const first = o.commissions[0];
-                  return (
-                    <div className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
-                      🕒 {fmtCommission(first)}
-                      {o.commissions.length > 1 && ` · +${o.commissions.length - 1} comis.`}
-                    </div>
-                  );
-                })()}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
 /* ---------------- Vista manual (drag & drop) ---------------- */
 
 function ManualView() {
@@ -333,7 +385,10 @@ function ManualView() {
   const settings = useStore((s) => s.user.settings);
   const difficultArr = useStore((s) => s.user.difficult);
   const [dragging, setDragging] = useState<string | null>(null);
+  const [hoverTerm, setHoverTerm] = useState<number | null>(null);
 
+  const offMap = useMemo(() => (offer ? offeringMap(offer) : null), [offer]);
+  const availSet = settings.restrictAvailability ? new Set(settings.availableSlots) : null;
   const placed = new Set(manualTerms.flatMap((t) => t.subjects));
   const pool = [...d.pending].filter((c) => !placed.has(c));
 
@@ -348,7 +403,6 @@ function ManualView() {
     );
   }
 
-  // Autocompleta los cuatris que faltan, dejando fijos los que armaste a mano.
   function autocompleteRest() {
     const preScheduled = new Map<string, number>();
     manualTerms.forEach((t, i) => t.subjects.forEach((c) => preScheduled.set(c, i)));
@@ -366,8 +420,8 @@ function ManualView() {
     setManualTerms(res.terms.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })));
   }
 
-  // Al arrastrar una materia: a qué cuatris se puede mover sin romper nada.
-  const validTerm = useMemo(() => {
+  // Motivo por el que una materia arrastrada puede/no puede ir a un cuatri.
+  const dragInfo = useMemo(() => {
     if (!dragging) return null;
     const s = graph.byCode.get(dragging);
     const finish = new Map<string, number>();
@@ -378,17 +432,37 @@ function ManualView() {
       }),
     );
     const reqs = graph.prereqs.get(dragging) ?? [];
-    return (i: number): boolean => {
+    const availableSlots = settings.restrictAvailability ? new Set(settings.availableSlots) : null;
+    return (i: number): { ok: boolean; reason: string } => {
       const cal = calendarOf(i, settings.startYear, settings.startTerm);
-      if ((s?.annual || s?.startsOnlyFirstSemester) && !cal.isFirstSemester) return false;
-      if (!reqs.every((p) => (finish.get(p) ?? Infinity) < i)) return false;
-      const cnt = manualTerms[i].subjects.filter((c) => c !== dragging).length;
-      if (cnt >= settings.maxPerTerm) return false;
-      return true;
+      if ((s?.annual || s?.startsOnlyFirstSemester) && !cal.isFirstSemester)
+        return { ok: false, reason: 'Solo puede arrancar en un 1er cuatrimestre (materia anual / Proyecto Final).' };
+      const missing = reqs.filter((p) => (finish.get(p) ?? Infinity) >= i);
+      if (missing.length)
+        return { ok: false, reason: `Te faltan correlativas antes: ${missing.map(name).join(', ')}.` };
+      const cnt = manualTerms[i]?.subjects.filter((c) => c !== dragging).length ?? 0;
+      if (cnt >= settings.maxPerTerm)
+        return { ok: false, reason: `Ese cuatri ya llegó al tope (${settings.maxPerTerm} materias).` };
+      if (i === 0 && offMap && availableSlots) {
+        const o = offMap.get(dragging);
+        if (o && o.commissions.length && !o.commissions.some((c) => commissionFitsAvailability(c, availableSlots)))
+          return { ok: false, reason: 'No hay comisión en tu disponibilidad horaria para ese día/turno.' };
+      }
+      return { ok: true, reason: 'Podés cursarla acá 👍' };
     };
-  }, [dragging, manualTerms, d.done, settings]);
+  }, [dragging, manualTerms, d.done, settings, offMap, name]);
 
   const dragCode = (e: React.DragEvent) => e.dataTransfer.getData('text/plain');
+  const startDrag = (code: string) => (e: React.DragEvent) => {
+    e.dataTransfer.setData('text/plain', code);
+    setDragging(code);
+  };
+  const endDrag = () => {
+    setDragging(null);
+    setHoverTerm(null);
+  };
+
+  const hoverReason = dragging && hoverTerm != null && dragInfo ? dragInfo(hoverTerm) : null;
 
   return (
     <div className="space-y-4">
@@ -411,7 +485,7 @@ function ManualView() {
             </span>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={seedFromAuto}
             className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
@@ -436,32 +510,42 @@ function ManualView() {
       </div>
 
       <p className="text-xs text-slate-500 dark:text-slate-400">
-        💡 Arrastrá materias entre cuatris. Mientras arrastrás, los cuatris se
-        pintan de <span className="text-emerald-500">verde</span> (podés soltarla
-        ahí) o <span className="text-rose-500">rojo</span> (rompería correlativas,
-        calendario o el cupo). También podés armar los primeros cuatris a mano y
+        💡 Arrastrá materias entre cuatris. Los cuatris se pintan{' '}
+        <span className="text-emerald-500">verde</span> (podés) o{' '}
+        <span className="text-rose-500">rojo</span> (rompería algo); pasando por
+        encima te digo el motivo. También podés armar los primeros cuatris a mano y
         tocar <strong>“Autocompletar el resto”</strong>.
       </p>
 
-      <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+      {/* Banner de motivo al arrastrar */}
+      {hoverReason && (
+        <div
+          className={`sticky top-2 z-10 rounded-lg border px-4 py-2 text-sm font-medium shadow ${
+            hoverReason.ok
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+              : 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+          }`}
+        >
+          {hoverReason.ok ? '✅' : '⛔'} {name(dragging!)} → {hoverReason.reason}
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
         <div
           className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/50"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
             moveToManualTerm(dragCode(e), null);
+            endDrag();
           }}
         >
           <h4 className="mb-2 text-sm font-semibold">Sin ubicar ({pool.length})</h4>
           <div className="space-y-1.5">
             {pool.map((code) => (
-              <DraggableSubject
-                key={code}
-                code={code}
-                termOptions={manualTerms}
-                onDragStartCode={setDragging}
-                onDragEndCode={() => setDragging(null)}
-              />
+              <div key={code} draggable onDragStart={startDrag(code)} onDragEnd={endDrag}>
+                <MateriaChip code={code} chain={new Set(d.schedule.criticalChain)} draggable />
+              </div>
             ))}
             {pool.length === 0 && (
               <p className="py-4 text-center text-xs text-slate-400">Todas ubicadas 🎉</p>
@@ -469,155 +553,107 @@ function ManualView() {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-3">
           {diag.terms.map((t, idx) => {
-            const ok = validTerm ? validTerm(idx) : null;
-            const ring =
-              ok === true
+            const info = dragInfo ? dragInfo(idx) : null;
+            const ring = !dragging
+              ? ''
+              : info?.ok
                 ? 'ring-2 ring-emerald-400'
-                : ok === false
-                  ? 'ring-2 ring-rose-400 opacity-60'
-                  : '';
+                : 'ring-2 ring-rose-400 opacity-70';
+            const invalidCodes = new Set(
+              t.subjects.filter((sd) => !sd.ok).map((sd) => sd.code),
+            );
             return (
-            <div
-              key={t.id}
-              className={`rounded-xl border border-slate-200 bg-white p-3 transition dark:border-slate-800 dark:bg-slate-900 ${ring}`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                moveToManualTerm(dragCode(e), t.id);
-              }}
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <h4 className="text-sm font-semibold">{termLabel(t.term, t.year)}</h4>
-                <button
-                  onClick={() => removeManualTerm(t.id)}
-                  className="text-xs text-slate-400 hover:text-rose-500"
-                  title="Eliminar cuatri"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="mb-2 flex flex-wrap gap-1 text-[10px]">
-                <span
-                  className={`rounded px-1.5 py-0.5 ${
-                    t.overCapacity ? 'bg-rose-500/15 text-rose-500' : 'bg-slate-500/10 text-slate-500'
-                  }`}
-                >
-                  {t.count}/{settings.maxPerTerm} materias
-                </span>
-                {t.conflictCount > 0 && (
-                  <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-rose-500">
-                    {t.conflictCount} choque{t.conflictCount > 1 ? 's' : ''}
-                  </span>
-                )}
-                <span className="rounded bg-slate-500/10 px-1.5 py-0.5 text-slate-500">{t.hours} hs</span>
-              </div>
-              <div className="min-h-[40px] space-y-1.5">
-                {t.subjects.map((sd) => (
-                  <div
-                    key={sd.code}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('text/plain', sd.code);
-                      setDragging(sd.code);
-                    }}
-                    onDragEnd={() => setDragging(null)}
-                    className={`cursor-grab rounded-lg border px-2.5 py-1.5 text-sm active:cursor-grabbing ${
-                      sd.ok
-                        ? 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50'
-                        : 'border-rose-400 bg-rose-500/5'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-medium leading-tight">{name(sd.code)}</span>
-                      <span className="font-mono text-[10px] text-slate-400">{sd.code}</span>
-                    </div>
-                    {sd.missingPrereqs.length > 0 && (
-                      <div className="text-[10px] text-rose-500">
-                        faltan correlativas: {sd.missingPrereqs.map((c) => name(c)).join(', ')}
-                      </div>
+              <div
+                key={t.id}
+                className={`rounded-xl border border-slate-200 bg-white p-3 transition dark:border-slate-800 dark:bg-slate-900 ${ring}`}
+                onDragEnter={() => setHoverTerm(idx)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  moveToManualTerm(dragCode(e), t.id);
+                  endDrag();
+                }}
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold">{termLabel(t.term, t.year)}</h4>
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <span
+                      className={`rounded px-1.5 py-0.5 ${
+                        t.overCapacity ? 'bg-rose-500/15 text-rose-500' : 'bg-slate-500/10 text-slate-500'
+                      }`}
+                    >
+                      {t.count}/{settings.maxPerTerm}
+                    </span>
+                    {t.conflictCount > 0 && (
+                      <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-rose-500">
+                        {t.conflictCount} choque{t.conflictCount > 1 ? 's' : ''}
+                      </span>
                     )}
-                    {sd.calendarError && (
-                      <div className="text-[10px] text-rose-500">{sd.calendarError}</div>
-                    )}
-                    {sd.hasConflict && (
-                      <div className="text-[10px] text-rose-500">choque de horario</div>
-                    )}
-                    {sd.notOffered && (
-                      <div className="text-[10px] text-amber-500">
-                        ⚠ no figura en la oferta actual
-                      </div>
-                    )}
-                    {sd.notAvailable && (
-                      <div className="text-[10px] text-amber-500">
-                        ⚠ no hay comisión en tu disponibilidad
-                      </div>
-                    )}
+                    <button
+                      onClick={() => removeManualTerm(t.id)}
+                      className="text-slate-400 hover:text-rose-500"
+                      title="Eliminar cuatri"
+                    >
+                      ✕
+                    </button>
                   </div>
-                ))}
-                {t.subjects.length === 0 && (
-                  <p className="py-2 text-center text-[11px] text-slate-400">Arrastrá materias acá</p>
+                </div>
+
+                {t.subjects.length === 0 ? (
+                  <p className="py-3 text-center text-[11px] text-slate-400">
+                    Arrastrá materias acá
+                  </p>
+                ) : (
+                  <TermGrid
+                    codes={t.subjects.map((sd) => sd.code)}
+                    offMap={offMap}
+                    availableSlots={availSet}
+                    drag={{ onDragStart: startDrag, onDragEnd: endDrag, invalidCodes }}
+                  />
                 )}
+
+                {/* Motivos de los conflictos ya soltados */}
+                {t.subjects
+                  .filter((sd) => !sd.ok || sd.notOffered || sd.notAvailable)
+                  .map((sd) => (
+                    <div key={sd.code} className="mt-1 text-[10px]">
+                      {sd.missingPrereqs.length > 0 && (
+                        <div className="text-rose-500">
+                          {name(sd.code)}: faltan {sd.missingPrereqs.map(name).join(', ')}
+                        </div>
+                      )}
+                      {sd.calendarError && (
+                        <div className="text-rose-500">
+                          {name(sd.code)}: {sd.calendarError}
+                        </div>
+                      )}
+                      {sd.hasConflict && (
+                        <div className="text-rose-500">{name(sd.code)}: choque de horario</div>
+                      )}
+                      {sd.notOffered && (
+                        <div className="text-amber-500">
+                          ⚠ {name(sd.code)}: no figura en la oferta actual
+                        </div>
+                      )}
+                      {sd.notAvailable && (
+                        <div className="text-amber-500">
+                          ⚠ {name(sd.code)}: no hay comisión en tu disponibilidad
+                        </div>
+                      )}
+                    </div>
+                  ))}
               </div>
-            </div>
             );
           })}
           {diag.terms.length === 0 && (
-            <div className="col-span-full rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+            <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
               Empezá con “Sembrar desde automático” o “+ Agregar cuatri” y arrastrá materias.
             </div>
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function DraggableSubject({
-  code,
-  termOptions,
-  onDragStartCode,
-  onDragEndCode,
-}: {
-  code: string;
-  termOptions: { id: string; subjects: string[] }[];
-  onDragStartCode?: (code: string) => void;
-  onDragEndCode?: () => void;
-}) {
-  const name = useSubjectName();
-  const moveToManualTerm = useStore((s) => s.moveToManualTerm);
-  const s = getSubject(code)!;
-  return (
-    <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('text/plain', code);
-        onDragStartCode?.(code);
-      }}
-      onDragEnd={() => onDragEndCode?.()}
-      className="cursor-grab rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm active:cursor-grabbing dark:border-slate-700 dark:bg-slate-800"
-      style={{ borderLeft: `3px solid ${trackColor(s.track)}` }}
-    >
-      <div className="flex items-center justify-between gap-1">
-        <span className="font-medium leading-tight">{name(code)}</span>
-        <span className="font-mono text-[10px] text-slate-400">{s.code}</span>
-      </div>
-      {termOptions.length > 0 && (
-        <select
-          aria-label={`Mover ${name(code)} a un cuatrimestre`}
-          className="mt-1 w-full rounded border border-slate-200 bg-transparent px-1 py-0.5 text-[11px] dark:border-slate-700"
-          value=""
-          onChange={(e) => e.target.value && moveToManualTerm(code, e.target.value)}
-        >
-          <option value="">Mover a…</option>
-          {termOptions.map((t, i) => (
-            <option key={t.id} value={t.id}>
-              Cuatri {i + 1}
-            </option>
-          ))}
-        </select>
-      )}
     </div>
   );
 }
