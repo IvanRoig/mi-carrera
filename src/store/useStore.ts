@@ -13,6 +13,10 @@ import { DEFAULT_SETTINGS } from '@/domain/types';
 import type { OfferData } from '@/domain/conflicts';
 import { subjectByCode } from '@/data/plan';
 import exampleState from '@/data/mi-estado-ejemplo.json';
+import ofertaBase from '@/data/oferta-base.json';
+
+/** Oferta precargada (base). El usuario puede subir una actualizada. */
+export const baseOffer = ofertaBase as OfferData;
 
 /** Un escenario del comparador: variante de configuración del simulador. */
 export type Scenario = {
@@ -111,7 +115,7 @@ export const useStore = create<StoreState>()(
       electiveNames: {},
       scenarios: [],
       manualTerms: [],
-      offer: null,
+      offer: baseOffer,
 
       setApproved: (code, grade) =>
         set((s) => {
@@ -265,7 +269,7 @@ export const useStore = create<StoreState>()(
           electiveNames: {},
           scenarios: [],
           manualTerms: [],
-          offer: null,
+          offer: baseOffer,
         })),
 
       importFullState: (state) => set(() => ({ ...state })),

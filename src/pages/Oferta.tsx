@@ -1,9 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
-import { useStore } from '@/store/useStore';
+import { useStore, baseOffer } from '@/store/useStore';
 import { useDerived } from '@/lib/useDerived';
 import { getSubject } from '@/data/plan';
 import { useSubjectName } from '@/lib/subjectName';
-import exampleOffer from '@/data/oferta-ejemplo.json';
 import {
   DAY_NAMES,
   detectConflicts,
@@ -45,14 +44,13 @@ export function Oferta() {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-4 text-sm">
-        <h3 className="font-semibold">Cómo funciona la oferta (es opcional)</h3>
+        <h3 className="font-semibold">Oferta de comisiones</h3>
         <p className="mt-1 text-slate-600 dark:text-slate-400">
-          <strong>No hace falta cargar nada acá para usar la app.</strong> El
-          simulador ya planifica por correlativas y cantidad de materias. La oferta
-          es opcional: si la cargás, el simulador conoce los{' '}
-          <strong>días/horarios reales</strong>, detecta choques y respeta tu
-          disponibilidad horaria. No hay ninguna oferta “de base”: la que subas es
-          la que se usa (podés reemplazarla cuando quieras).
+          <strong>Ya viene una oferta precargada</strong>, así que el simulador
+          muestra días, horarios y modalidades sin que tengas que hacer nada.
+          Solo cargá una <strong>nueva</strong> si la facultad la actualizó y esta
+          quedó vieja: la que subas reemplaza a la base (podés volver a la base
+          cuando quieras).
         </p>
         <p className="mt-2 text-slate-600 dark:text-slate-400">
           Para conseguirla: entrá a la <strong>intraconsulta</strong> del campus,
@@ -76,42 +74,27 @@ export function Oferta() {
         >
           📄 Subir HTML de la oferta
         </button>
-        <button
-          onClick={() => {
-            setOffer(exampleOffer as OfferData);
-            setMsg('Cargué la oferta de ejemplo.');
-          }}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium dark:border-slate-700"
-        >
-          Cargar ejemplo
-        </button>
-        {offer && (
+        {offer && offer !== baseOffer && (
           <button
             onClick={() => {
-              setOffer(null);
-              setMsg('');
+              setOffer(baseOffer);
+              setMsg('Volviste a la oferta base.');
             }}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium dark:border-slate-700"
           >
-            Quitar oferta
+            Volver a la oferta base
           </button>
         )}
         {offer && (
           <Badge className="bg-brand-500/15 text-brand-600 ring-brand-500/30 dark:text-brand-300">
-            {offer.cuatrimestre} · {offer.offerings.length} materias
+            {offer === baseOffer ? offer.cuatrimestre : `Tuya · ${offer.cuatrimestre}`} ·{' '}
+            {offer.offerings.length} materias
           </Badge>
         )}
       </div>
       {msg && <p className="text-sm text-slate-500 dark:text-slate-400">{msg}</p>}
 
-      {!offer ? (
-        <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
-          Todavía no cargaste una oferta. Subí el HTML (o probá el ejemplo) para
-          ver la grilla de horarios y detectar choques.
-        </div>
-      ) : (
-        <OfferContent offer={offer} />
-      )}
+      {offer && <OfferContent offer={offer} />}
     </div>
   );
 }
