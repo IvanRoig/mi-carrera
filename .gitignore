@@ -28,4 +28,5 @@ pnpm-debug.log*
 # Datos personales — NO se publican (cada usuario carga los suyos en su navegador)
 *.local.json
 *historia_academica*.pdf
+*Intraconsulta*.html
 mi-estado-real.json

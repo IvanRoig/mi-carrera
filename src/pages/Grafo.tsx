@@ -23,6 +23,9 @@ const LEVELS = upstreamDepth(graph);
 const X_GAP = 240;
 const Y_GAP = 74;
 
+/** Colores por año (1° a 5°). */
+const YEAR_COLORS = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#fb7185'];
+
 const positions = (() => {
   const byLevel = new Map<number, string[]>();
   for (const s of subjects) {
@@ -46,7 +49,7 @@ export function Grafo() {
   const d = useDerived();
   const name = useSubjectName();
   const electiveNames = useStore((s) => s.electiveNames);
-  const [colorBy, setColorBy] = useState<'status' | 'track'>('status');
+  const [colorBy, setColorBy] = useState<'status' | 'track' | 'year'>('status');
   const [selected, setSelected] = useState<string | null>(null);
 
   const { related, upstream, downstream } = useMemo(() => {
@@ -60,7 +63,12 @@ export function Grafo() {
   const nodes: Node[] = useMemo(() => {
     return subjects.map((s) => {
       const st = d.statuses.get(s.code)!;
-      const color = colorBy === 'status' ? STATUS_COLOR[st] : trackColor(s.track);
+      const color =
+        colorBy === 'status'
+          ? STATUS_COLOR[st]
+          : colorBy === 'track'
+            ? trackColor(s.track)
+            : YEAR_COLORS[s.year - 1] ?? '#94a3b8';
       const dimmed = related ? !related.has(s.code) : false;
       const isSel = selected === s.code;
       return {
@@ -127,6 +135,9 @@ export function Grafo() {
             </Seg>
             <Seg active={colorBy === 'track'} onClick={() => setColorBy('track')}>
               Trayecto
+            </Seg>
+            <Seg active={colorBy === 'year'} onClick={() => setColorBy('year')}>
+              Año
             </Seg>
           </div>
         </div>
@@ -203,17 +214,21 @@ function Seg({
   );
 }
 
-function Legend({ colorBy }: { colorBy: 'status' | 'track' }) {
+function Legend({ colorBy }: { colorBy: 'status' | 'track' | 'year' }) {
   const items =
     colorBy === 'status'
       ? (Object.keys(STATUS_LABEL) as SubjectStatus[]).map((k) => ({
           color: STATUS_COLOR[k],
           label: STATUS_LABEL[k],
         }))
-      : [...new Set(subjects.map((s) => s.track))].map((t) => ({
-          color: trackColor(t),
-          label: t,
-        }));
+      : colorBy === 'year'
+        ? [...new Set(subjects.map((s) => s.year))]
+            .sort((a, b) => a - b)
+            .map((y) => ({ color: YEAR_COLORS[y - 1] ?? '#94a3b8', label: `${y}° año` }))
+        : [...new Set(subjects.map((s) => s.track))].map((t) => ({
+            color: trackColor(t),
+            label: t,
+          }));
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
       {items.map((it) => (

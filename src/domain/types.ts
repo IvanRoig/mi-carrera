@@ -42,10 +42,10 @@ export type ApprovedSubject = {
 
 /** Configuración editable del usuario. */
 export type UserSettings = {
-  /** Cuántas materias en turno noche tolera por cuatrimestre. */
-  maxNightSlots: number;
-  /** Cuántas materias fuera del turno noche (mañana/tarde/distancia) tolera. */
-  maxNonNightSlots: number;
+  /** Mínimo de materias por cuatrimestre que preferís (preferencia). */
+  minPerTerm: number;
+  /** Máximo de materias por cuatrimestre (tope real que usa el simulador). */
+  maxPerTerm: number;
   /** Año de inicio del cómputo del simulador. */
   startYear: number;
   /** Cuatrimestre de inicio (1 o 2). */
@@ -55,6 +55,12 @@ export type UserSettings = {
   /** Cantidad de aplazos (finales desaprobados) para el promedio con aplazos.
    * La historia académica del campus no los muestra, se cargan a mano. */
   aplazos: number;
+  /** Considerar Taller de Integración (materia optativa) en todo. */
+  includeTaller: boolean;
+  /** (Opcional, poco usado) limitar cuántas materias "difíciles" por cuatri. */
+  limitDifficult: boolean;
+  /** Máximo de materias difíciles por cuatri si limitDifficult está activo. */
+  maxDifficultPerTerm: number;
 };
 
 /** Estado propio del usuario (lo que se guarda en localStorage). */
@@ -69,6 +75,8 @@ export type UserState = {
   regularized: string[];
   /** Materias que está cursando ahora (cuentan como aprobadas al cierre). */
   inProgress: string[];
+  /** Materias que el usuario marcó como "difíciles" (opcional). */
+  difficult: string[];
   settings: UserSettings;
 };
 
@@ -81,10 +89,16 @@ export type SubjectStatus =
   | 'blocked'; // faltan correlativas
 
 export const DEFAULT_SETTINGS: UserSettings = {
-  maxNightSlots: 5,
-  maxNonNightSlots: 1,
+  minPerTerm: 4,
+  maxPerTerm: 6,
   startYear: new Date().getFullYear(),
   startTerm: 1,
   degreeProcessingMonths: 6,
   aplazos: 0,
+  includeTaller: true,
+  limitDifficult: false,
+  maxDifficultPerTerm: 2,
 };
+
+/** Código de la materia optativa Taller de Integración. */
+export const TALLER_CODE = '03680';

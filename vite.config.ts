@@ -16,6 +16,13 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    // No vigilar archivos de datos que el usuario deja en la raíz (PDFs, HTML
+    // de la oferta): en Windows pueden estar bloqueados y romper el watcher.
+    watch: {
+      ignored: ['**/*.pdf', '**/*Intraconsulta*.html', '**/*.local.json'],
+    },
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.{test,spec}.ts'],

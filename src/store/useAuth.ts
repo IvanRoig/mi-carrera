@@ -25,16 +25,21 @@ function translateError(msg: string): string {
   return msg;
 }
 
+const GUEST_KEY = 'unlam-guest';
+
 export type AuthState = {
   configured: boolean;
   user: User | null;
   status: 'loading' | 'ready';
+  /** El usuario eligió continuar sin cuenta. */
+  guest: boolean;
   /** true cuando el usuario llegó desde el link de recuperación de contraseña. */
   recovery: boolean;
   error: string | null;
   info: string | null;
 
   init: () => void;
+  continueAsGuest: () => void;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -43,17 +48,36 @@ export type AuthState = {
   clearMessages: () => void;
 };
 
+function readGuest(): boolean {
+  try {
+    return localStorage.getItem(GUEST_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export const useAuth = create<AuthState>((set, get) => ({
   configured: isSupabaseConfigured,
   user: null,
+  // Si no hay backend de cuentas, entramos directo (modo invitado).
   status: isSupabaseConfigured ? 'loading' : 'ready',
+  guest: !isSupabaseConfigured || readGuest(),
   recovery: false,
   error: null,
   info: null,
 
+  continueAsGuest: () => {
+    try {
+      localStorage.setItem(GUEST_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+    set({ guest: true });
+  },
+
   init: () => {
     if (!supabase) {
-      set({ status: 'ready' });
+      set({ status: 'ready', guest: true });
       return;
     }
     // Sesión inicial.
@@ -107,7 +131,13 @@ export const useAuth = create<AuthState>((set, get) => ({
   signOut: async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
-    set({ recovery: false });
+    try {
+      localStorage.removeItem(GUEST_KEY);
+    } catch {
+      /* ignore */
+    }
+    // Vuelve a la pantalla de inicio (login / invitado).
+    set({ recovery: false, guest: false });
   },
 
   sendReset: async (email) => {

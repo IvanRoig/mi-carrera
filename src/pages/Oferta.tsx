@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useDerived } from '@/lib/useDerived';
 import { useSubjectName } from '@/lib/subjectName';
@@ -12,38 +12,71 @@ import {
   type OfferData,
   type SelectedCommission,
 } from '@/domain/conflicts';
+import { parseOfertaHtml } from '@/lib/parseOfertaHtml';
 import { Badge } from '@/components/Badge';
 
 export function Oferta() {
   const offer = useStore((s) => s.offer);
   const setOffer = useStore((s) => s.setOffer);
-  const [text, setText] = useState('');
-  const [err, setErr] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [msg, setMsg] = useState('');
 
-  function tryParse(raw: string) {
-    try {
-      const obj = JSON.parse(raw) as OfferData;
-      if (!obj.offerings) throw new Error('falta offerings');
-      setOffer(obj);
-      setErr('');
-      setText('');
-    } catch {
-      setErr('No se pudo leer el JSON. Revisá el formato (ver oferta-ejemplo.json).');
-    }
+  function handleHtml(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = parseOfertaHtml(String(reader.result), file.name.replace(/\.html?$/i, ''));
+        if (parsed.offerings.length === 0) {
+          setMsg('No detecté comisiones en ese HTML. ¿Es la página de oferta de la intraconsulta?');
+          return;
+        }
+        setOffer(parsed);
+        setMsg(`Cargué ${parsed.offerings.length} materias desde el HTML.`);
+      } catch {
+        setMsg('No se pudo leer el HTML.');
+      }
+    };
+    reader.readAsText(file, 'utf-8');
   }
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-4 text-sm">
+        <h3 className="font-semibold">Cómo funciona la oferta</h3>
+        <p className="mt-1 text-slate-600 dark:text-slate-400">
+          Entrá a la <strong>intraconsulta</strong> del campus, abrí la pantalla
+          de <strong>oferta de comisiones</strong> y guardá esa página como
+          archivo <strong>HTML</strong> (Ctrl+S → “Página web, solo HTML”).
+          Subila acá y la app extrae automáticamente días, horarios y modalidades
+          para detectar choques y mejorar el simulador.
+        </p>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
+        <input ref={fileRef} type="file" accept=".html,.htm,text/html" className="hidden" onChange={handleHtml} />
         <button
-          onClick={() => setOffer(exampleOffer as OfferData)}
+          onClick={() => fileRef.current?.click()}
           className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
         >
-          Cargar oferta de ejemplo
+          📄 Subir HTML de la oferta
+        </button>
+        <button
+          onClick={() => {
+            setOffer(exampleOffer as OfferData);
+            setMsg('Cargué la oferta de ejemplo.');
+          }}
+          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium dark:border-slate-700"
+        >
+          Cargar ejemplo
         </button>
         {offer && (
           <button
-            onClick={() => setOffer(null)}
+            onClick={() => {
+              setOffer(null);
+              setMsg('');
+            }}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium dark:border-slate-700"
           >
             Quitar oferta
@@ -51,36 +84,16 @@ export function Oferta() {
         )}
         {offer && (
           <Badge className="bg-brand-500/15 text-brand-600 ring-brand-500/30 dark:text-brand-300">
-            {offer.cuatrimestre} · {offer.offerings.length} materias ofertadas
+            {offer.cuatrimestre} · {offer.offerings.length} materias
           </Badge>
         )}
       </div>
-
-      <details className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
-        <summary className="cursor-pointer text-sm font-medium">
-          Pegar oferta en JSON (formato de oferta-ejemplo.json)
-        </summary>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={6}
-          className="mt-3 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs dark:border-slate-700 dark:bg-slate-950"
-          placeholder='{ "cuatrimestre": "2C-2026", "offerings": [ ... ] }'
-        />
-        {err && <p className="mt-1 text-xs text-rose-500">{err}</p>}
-        <button
-          onClick={() => tryParse(text)}
-          disabled={!text.trim()}
-          className="mt-2 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-40"
-        >
-          Cargar
-        </button>
-      </details>
+      {msg && <p className="text-sm text-slate-500 dark:text-slate-400">{msg}</p>}
 
       {!offer ? (
         <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
-          Cargá una oferta para ver la grilla de horarios, detectar choques y que
-          el simulador tenga en cuenta días/horarios reales.
+          Todavía no cargaste una oferta. Subí el HTML (o probá el ejemplo) para
+          ver la grilla de horarios y detectar choques.
         </div>
       ) : (
         <OfferContent offer={offer} />
@@ -94,12 +107,10 @@ function OfferContent({ offer }: { offer: OfferData }) {
   const name = useSubjectName();
   const offMap = useMemo(() => offeringMap(offer), [offer]);
 
-  // Elegibles pendientes (podés cursarlas ya).
   const eligible = [...d.pending].filter((c) => d.statuses.get(c) === 'eligible');
   const eligibleOffered = eligible.filter((c) => offMap.has(c));
   const eligibleNotOffered = eligible.filter((c) => !offMap.has(c));
 
-  // Selección de comisiones (una por materia elegible, la primera) para choques.
   const selected: SelectedCommission[] = eligibleOffered.flatMap((c) => {
     const o = offMap.get(c)!;
     return o.commissions.length ? [{ code: c, commission: o.commissions[0] }] : [];
@@ -108,7 +119,6 @@ function OfferContent({ offer }: { offer: OfferData }) {
 
   return (
     <div className="space-y-6">
-      {/* Alertas */}
       {conflicts.length > 0 && (
         <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3 text-sm">
           <strong className="text-rose-600 dark:text-rose-400">
@@ -116,12 +126,15 @@ function OfferContent({ offer }: { offer: OfferData }) {
           </strong>{' '}
           entre materias elegibles (usando la 1° comisión de cada una):
           <ul className="mt-1 list-inside list-disc text-slate-600 dark:text-slate-400">
-            {conflicts.map((c, i) => (
-              <li key={i}>
-                {name(c.a.code)} ✕ {name(c.b.code)} —{' '}
-                {DAY_NAMES[c.a.commission.day]} {c.a.commission.start}
-              </li>
-            ))}
+            {conflicts.map((c, i) => {
+              const m = c.a.commission.meetings[0];
+              return (
+                <li key={i}>
+                  {name(c.a.code)} ✕ {name(c.b.code)}
+                  {m && ` — ${DAY_NAMES[m.day]} ${m.start}`}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -133,22 +146,15 @@ function OfferContent({ offer }: { offer: OfferData }) {
         </div>
       )}
 
-      {/* Grilla semanal */}
       <WeeklyGrid offer={offer} highlight={new Set(eligibleOffered)} />
 
-      {/* Lista de materias elegibles y su oferta */}
       <div>
-        <h3 className="mb-2 text-lg font-semibold">
-          Materias que podés cursar este cuatri
-        </h3>
+        <h3 className="mb-2 text-lg font-semibold">Materias que podés cursar este cuatri</h3>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {eligibleOffered.map((c) => {
             const o = offMap.get(c)!;
             return (
-              <div
-                key={c}
-                className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
-              >
+              <div key={c} className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{name(c)}</span>
                   <span className="font-mono text-xs text-slate-400">{c}</span>
@@ -156,7 +162,12 @@ function OfferContent({ offer }: { offer: OfferData }) {
                 <div className="mt-1 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
                   {o.commissions.map((cm) => (
                     <div key={cm.id}>
-                      {DAY_NAMES[cm.day]} {cm.start}–{cm.end} · {cm.modality}
+                      {cm.meetings.length === 0
+                        ? 'a distancia'
+                        : cm.meetings
+                            .map((m) => `${DAY_NAMES[m.day].slice(0, 3)} ${m.start}–${m.end}`)
+                            .join(' + ')}{' '}
+                      · {cm.modality}
                       {isNightCommission(cm) ? ' 🌙' : ' ☀️'}
                     </div>
                   ))}
@@ -178,43 +189,31 @@ function OfferContent({ offer }: { offer: OfferData }) {
 const START_HOUR = 8;
 const END_HOUR = 23;
 
-function WeeklyGrid({
-  offer,
-  highlight,
-}: {
-  offer: OfferData;
-  highlight: Set<string>;
-}) {
+function WeeklyGrid({ offer, highlight }: { offer: OfferData; highlight: Set<string> }) {
   const name = useSubjectName();
-  const days = [0, 1, 2, 3, 4, 5]; // Lun..Sáb
+  const days = [0, 1, 2, 3, 4, 5];
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 
-  // Bloques por día.
   const blocks = useMemo(() => {
-    const list: {
-      code: string;
-      day: number;
-      start: number;
-      end: number;
-      commissionId: string;
-    }[] = [];
+    const list: { code: string; day: number; start: number; end: number; key: string }[] = [];
     for (const o of offer.offerings) {
       if (!highlight.has(o.code)) continue;
       for (const cm of o.commissions) {
-        if (cm.modality === 'distancia') continue;
-        list.push({
-          code: o.code,
-          day: cm.day,
-          start: toMinutes(cm.start),
-          end: toMinutes(cm.end),
-          commissionId: cm.id,
-        });
+        for (const m of cm.meetings) {
+          list.push({
+            code: o.code,
+            day: m.day,
+            start: toMinutes(m.start),
+            end: toMinutes(m.end),
+            key: `${o.code}-${cm.id}-${m.day}-${m.start}`,
+          });
+        }
       }
     }
     return list;
   }, [offer, highlight]);
 
-  const rowH = 26; // px por hora
+  const rowH = 26;
   const total = (END_HOUR - START_HOUR) * rowH;
 
   return (
@@ -223,48 +222,32 @@ function WeeklyGrid({
         <div className="grid" style={{ gridTemplateColumns: `48px repeat(${days.length}, 1fr)` }}>
           <div />
           {days.map((dd) => (
-            <div
-              key={dd}
-              className="border-b border-slate-200 py-2 text-center text-xs font-semibold dark:border-slate-800"
-            >
+            <div key={dd} className="border-b border-slate-200 py-2 text-center text-xs font-semibold dark:border-slate-800">
               {DAY_NAMES[dd]}
             </div>
           ))}
         </div>
         <div className="grid" style={{ gridTemplateColumns: `48px repeat(${days.length}, 1fr)` }}>
-          {/* Columna de horas */}
           <div className="relative" style={{ height: total }}>
             {hours.map((h) => (
-              <div
-                key={h}
-                className="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400"
-                style={{ top: (h - START_HOUR) * rowH }}
-              >
+              <div key={h} className="absolute right-1 -translate-y-1/2 text-[10px] text-slate-400" style={{ top: (h - START_HOUR) * rowH }}>
                 {h}:00
               </div>
             ))}
           </div>
           {days.map((dd) => (
-            <div
-              key={dd}
-              className="relative border-l border-slate-100 dark:border-slate-800/60"
-              style={{ height: total }}
-            >
+            <div key={dd} className="relative border-l border-slate-100 dark:border-slate-800/60" style={{ height: total }}>
               {hours.map((h) => (
-                <div
-                  key={h}
-                  className="absolute w-full border-t border-slate-100 dark:border-slate-800/40"
-                  style={{ top: (h - START_HOUR) * rowH }}
-                />
+                <div key={h} className="absolute w-full border-t border-slate-100 dark:border-slate-800/40" style={{ top: (h - START_HOUR) * rowH }} />
               ))}
               {blocks
                 .filter((b) => b.day === dd)
                 .map((b) => {
                   const top = ((b.start - START_HOUR * 60) / 60) * rowH;
-                  const height = ((b.end - b.start) / 60) * rowH;
+                  const height = Math.max(14, ((b.end - b.start) / 60) * rowH);
                   return (
                     <div
-                      key={b.code + b.commissionId}
+                      key={b.key}
                       className="absolute left-0.5 right-0.5 overflow-hidden rounded-md bg-brand-600/85 p-1 text-[10px] leading-tight text-white shadow-sm"
                       style={{ top, height }}
                       title={name(b.code)}
