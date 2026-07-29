@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { graph } from './planGraph';
 import { subjects } from '../data/plan';
 import ofertaBase from '../data/oferta-base.json';
-import { commissionsOverlap, type OfferData } from './conflicts';
+import { commissionsOverlap, commissionFitsAvailability, type OfferData } from './conflicts';
 import { schedule, calendarOf } from './scheduler';
 import { DEFAULT_SETTINGS, TALLER_CODE } from './types';
 
@@ -90,6 +90,36 @@ describe('materias en curso', () => {
     for (let i = 0; i < comms.length; i++)
       for (let j = i + 1; j < comms.length; j++)
         expect(commissionsOverlap(comms[i], comms[j])).toBe(false);
+  });
+
+  it('te saca de tu disponibilidad lo menos posible', () => {
+    // Con estas seis no hay forma de que todas caigan de noche: cinco de ellas
+    // solo se dictan de noche en cinco días distintos, así que RSU tiene que ir
+    // de mañana. Pero alcanza con UNA: si el asignador toma la primera solución
+    // que encuentra, pone dos: manda Física II al viernes a la mañana pudiendo
+    // dejarla el lunes a la noche. Cuál de las seis es la excepción da igual
+    // (cuesta una mañana igual); lo que no da igual es que sean dos.
+    const dispo = new Set(settings.availableSlots);
+    const afuera = enCurso.filter(
+      (c) => !commissionFitsAvailability(res.commissionByCode.get(c)!, dispo),
+    );
+    expect(afuera.map((c) => graph.byCode.get(c)?.name)).toHaveLength(1);
+  });
+
+  it('el resto del plan respeta tu disponibilidad a full', () => {
+    // La excepción vale solo para lo que ya estás cursando. En los cuatrimestres
+    // que todavía podés elegir, nada puede caer fuera de tus turnos.
+    const dispo = new Set(settings.availableSlots);
+    for (const t of res.terms.slice(1)) {
+      for (const c of t.subjects) {
+        const comm = res.commissionByCode.get(c);
+        if (!comm) continue;
+        expect(
+          commissionFitsAvailability(comm, dispo),
+          `${graph.byCode.get(c)?.name} fuera de tu disponibilidad`,
+        ).toBe(true);
+      }
+    }
   });
 
   it('no infla la duración: sigue dando 6 cuatrimestres', () => {

@@ -365,6 +365,7 @@ function assignAllCommissions(
 
     // Una sola asignación conjunta: garantiza que nada se pise dentro del cuatri.
     const asg =
+      conMinimasExcepciones(offered, local, maps.availableSlots) ??
       findConflictFreeAssignment(offered, local) ??
       findConflictFreeAssignment(offered, offMap) ??
       // Si el cuatri no cierra (p.ej. dos materias que solo se dictan a la misma
@@ -379,6 +380,74 @@ function assignAllCommissions(
     }
   });
   return out;
+}
+
+/**
+ * Asignación que te saca de tu disponibilidad las MENOS veces posibles.
+ *
+ * A veces no hay forma de que todas entren en los turnos que marcaste (p.ej. seis
+ * materias de las cuales cinco solo se dictan de noche, en cinco días: la sexta
+ * tiene que ir de mañana). Pero "no hay forma con todas" no significa que valga
+ * cualquier cosa: si alcanza con UNA de mañana, no queremos dos.
+ *
+ * Así que probamos primero con todas restringidas a lo que podés, y vamos
+ * soltando de a una, de a dos, de a tres. La primera asignación que cierra es,
+ * por construcción, la que menos excepciones usa.
+ */
+function conMinimasExcepciones(
+  offered: string[],
+  base: Map<string, Offering>,
+  availableSlots: Set<string> | null,
+): Map<string, Commission> | null {
+  if (!availableSlots || offered.length === 0) return null;
+
+  const restringido = new Map(base);
+  const flexibles: string[] = [];
+  for (const c of offered) {
+    const o = base.get(c);
+    if (!o) continue;
+    const entran = o.commissions.filter((cm) => commissionFitsAvailability(cm, availableSlots));
+    // Si ninguna comisión entra en tu disponibilidad no hay nada que elegir:
+    // queda con todas y no cuenta como excepción evitable.
+    if (entran.length > 0 && entran.length < o.commissions.length) {
+      restringido.set(c, { ...o, commissions: entran });
+      flexibles.push(c);
+    } else if (entran.length === o.commissions.length) {
+      flexibles.push(c);
+    }
+  }
+
+  let intentos = 0;
+  const probar = (soltar: string[]): Map<string, Commission> | null => {
+    if (++intentos > 400) return null;
+    const m = new Map(restringido);
+    for (const c of soltar) m.set(c, base.get(c)!);
+    return findConflictFreeAssignment(offered, m);
+  };
+
+  // k = 0: todas respetando tu disponibilidad.
+  const cero = probar([]);
+  if (cero) return cero;
+  // k = 1, 2, 3: soltamos de a poquitas, siempre las menos.
+  for (let i = 0; i < flexibles.length; i++) {
+    const uno = probar([flexibles[i]]);
+    if (uno) return uno;
+  }
+  for (let i = 0; i < flexibles.length; i++) {
+    for (let j = i + 1; j < flexibles.length; j++) {
+      const dos = probar([flexibles[i], flexibles[j]]);
+      if (dos) return dos;
+    }
+  }
+  for (let i = 0; i < flexibles.length; i++) {
+    for (let j = i + 1; j < flexibles.length; j++) {
+      for (let k = j + 1; k < flexibles.length; k++) {
+        const tres = probar([flexibles[i], flexibles[j], flexibles[k]]);
+        if (tres) return tres;
+      }
+    }
+  }
+  return null;
 }
 
 /**
