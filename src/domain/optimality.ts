@@ -35,6 +35,9 @@ export type OptimalityInput = {
   offer: OfferData | null;
   /** Duración del plan actual (en cuatrimestres). */
   actual: number;
+  /** Electivas que elegiste a mano (cupo → día). El análisis las respeta, igual
+   * que el simulador: si no, compararía contra un plan que vos no querés. */
+  electivePref?: Record<string, number>;
 };
 
 /** Dónde queda cada materia: cuatrimestre y franja "día-turno" (null si no tiene horario). */
@@ -51,6 +54,9 @@ export type Resultado = {
   motivo?: string;
   /** Franjas que, de liberarlas, ahorrarían un cuatrimestre. */
   franjas: SlotSugerido[];
+  /** Si fijaste electivas a mano y eso te cuesta tiempo: a cuánto bajarías
+   * dejando que el simulador las elija. */
+  sinFijarElectivas?: number;
 };
 
 /** "Jueves a la noche" */
@@ -72,16 +78,26 @@ function slotDe(c: Commission): string | null {
   return m ? `${m.day}-${turnoOf(toMinutes(m.start))}` : null;
 }
 
-/** Comisiones que el usuario puede cursar (si ninguna entra, quedan todas). */
+/** Comisiones que el usuario puede cursar (si ninguna entra, quedan todas).
+ * Respeta la electiva que hayas elegido a mano. */
 function comisionesDe(
   code: string,
   offMap: Map<string, Offering>,
   disponibles: Set<string> | null,
+  electivePref?: Record<string, number>,
 ): Commission[] {
   const todas = offMap.get(code)?.commissions ?? [];
-  if (!disponibles) return todas;
-  const ok = todas.filter((c) => commissionFitsAvailability(c, disponibles));
-  return ok.length ? ok : todas;
+  let out = todas;
+  if (disponibles) {
+    const ok = out.filter((c) => commissionFitsAvailability(c, disponibles));
+    out = ok.length ? ok : out;
+  }
+  const dia = electivePref?.[code];
+  if (dia != null) {
+    const fijadas = out.filter((c) => c.meetings.some((m) => m.day === dia));
+    if (fijadas.length) out = fijadas;
+  }
+  return out;
 }
 
 /** Índice de comisiones + matriz de superposición, para chequear choques rápido. */
@@ -306,7 +322,7 @@ export function cuelloDeBotella(inp: OptimalityInput): { cantidad: number; franj
     : null;
   const porFranja = new Map<string, number>();
   for (const c of inp.pending) {
-    const cs = comisionesDe(c, offMap, disponibles);
+    const cs = comisionesDe(c, offMap, disponibles, inp.electivePref);
     const slots = new Set(cs.map(slotDe).filter((s): s is string => !!s));
     if (slots.size === 1) {
       const s = [...slots][0];
@@ -321,9 +337,14 @@ export function cuelloDeBotella(inp: OptimalityInput): { cantidad: number; franj
 }
 
 /** Prepara comisiones + matriz para una disponibilidad dada. */
-function preparar(inp: OptimalityInput, offMap: Map<string, Offering>, disponibles: Set<string> | null) {
+function preparar(
+  inp: OptimalityInput,
+  offMap: Map<string, Offering>,
+  disponibles: Set<string> | null,
+  electivePref = inp.electivePref,
+) {
   const porMateria = new Map<string, Commission[]>();
-  for (const c of inp.pending) porMateria.set(c, comisionesDe(c, offMap, disponibles));
+  for (const c of inp.pending) porMateria.set(c, comisionesDe(c, offMap, disponibles, electivePref));
   return { porMateria, mat: armarMatriz(porMateria) };
 }
 
@@ -364,7 +385,17 @@ export function buscarMinimo(
   // Si no se puede mejorar, ¿qué franja lo destrabaría?
   const franjas: SlotSugerido[] = [];
   let motivo: string | undefined;
+  let sinFijarElectivas: number | undefined;
   if (minimo === inp.actual) {
+    // ¿Y si las electivas las eligiera el simulador en vez de vos?
+    if (inp.electivePref && Object.keys(inp.electivePref).length > 0) {
+      const libre = preparar(inp, offMap, disponibles, undefined);
+      const lbLibre = cotaInferior(inp, libre.porMateria, libre.mat);
+      for (let T = inp.actual - 1; T >= lbLibre; T--) {
+        if (!buscarPlan(inp, T, libre.porMateria, libre.mat)) break;
+        sinFijarElectivas = T;
+      }
+    }
     const cuello = cuelloDeBotella(inp);
     if (cuello) {
       motivo = `${cuello.cantidad} materias se dictan únicamente el ${nombreDeFranja(
@@ -393,5 +424,5 @@ export function buscarMinimo(
     }
   }
 
-  return { minimo, plan: mejorPlan, motivo, franjas };
+  return { minimo, plan: mejorPlan, motivo, franjas, sinFijarElectivas };
 }
