@@ -12,12 +12,7 @@ import { formatGraduation, termLabel, trackColor } from '@/lib/ui';
 import { validateManualPlan, SUMMER_MAX, type SubjectDiag, type TermDiag } from '@/domain/manual';
 import { schedule, calendarOf, type ScheduleResult } from '@/domain/scheduler';
 import { termToClipboardText, copyToClipboard, type TermItem } from '@/lib/exportTerm';
-import {
-  analizarOptimo,
-  franjasQueDestraban,
-  type Verdict,
-  type SlotSugerido,
-} from '@/domain/optimality';
+import type { WorkerMsg, WorkerReq } from '@/workers/optimality.worker';
 import type { PinnedTerm } from '@/store/useStore';
 import {
   offeringMap,
@@ -442,41 +437,105 @@ function ResultBanner({ s }: { s: ScheduleResult }) {
 }
 
 /**
- * "¿Se puede terminar antes?" — análisis a pedido. Por defecto es solo un enlace
- * discreto; recién al tocarlo corre la búsqueda exhaustiva y muestra el
- * resultado. Así no satura la pantalla ni gasta tiempo si no lo pedís.
+ * "¿Se puede terminar antes?" — verificación exhaustiva a pedido.
+ *
+ * Por defecto es solo un enlace discreto. Al tocarlo, la búsqueda corre en un
+ * WORKER (segundo plano): puede tardar lo que haga falta sin trabar la página,
+ * mostrando el tiempo y con opción de cancelar. Si encuentra un plan más corto,
+ * te deja aplicarlo directamente en el armado manual.
  */
 function AnalisisOptimo({ makespan }: { makespan: number }) {
   const d = useDerived();
   const settings = useStore((st) => st.user.settings);
   const offer = useStore((st) => st.offer);
+  const seedManual = useStore((st) => st.seedManual);
+  const setSimMode = useStore((st) => st.setSimMode);
+
   const [estado, setEstado] = useState<'inicial' | 'corriendo' | 'listo'>('inicial');
-  const [veredicto, setVeredicto] = useState<Verdict | null>(null);
-  const [franjas, setFranjas] = useState<SlotSugerido[]>([]);
+  const [progreso, setProgreso] = useState<{ probando: number; nodos: number } | null>(null);
+  const [segundos, setSegundos] = useState(0);
+  const [res, setRes] = useState<WorkerMsg & { tipo: 'listo' } | null>(null);
+  const [aplicado, setAplicado] = useState(false);
+  const workerRef = useRef<Worker | null>(null);
+
+  const cancelar = () => {
+    workerRef.current?.terminate();
+    workerRef.current = null;
+    setEstado('inicial');
+    setProgreso(null);
+  };
 
   // Si cambian los datos, el análisis anterior deja de valer.
   useEffect(() => {
+    workerRef.current?.terminate();
+    workerRef.current = null;
     setEstado('inicial');
-    setVeredicto(null);
-    setFranjas([]);
+    setRes(null);
+    setProgreso(null);
+    setAplicado(false);
   }, [makespan, d.pending, settings, offer]);
+
+  // Cronómetro mientras corre.
+  useEffect(() => {
+    if (estado !== 'corriendo') return;
+    setSegundos(0);
+    const id = setInterval(() => setSegundos((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [estado]);
+
+  // Al desmontar, cortamos el worker.
+  useEffect(() => () => workerRef.current?.terminate(), []);
 
   if (!offer || d.pending.size === 0 || makespan <= 1) return null;
 
-  const inp = { graph, pending: d.pending, settings, offer, actual: makespan };
-
-  async function analizar() {
+  function analizar() {
     setEstado('corriendo');
-    // Cedemos un frame para que se vea el estado "analizando".
-    await new Promise((r) => setTimeout(r, 30));
-    const v = analizarOptimo(inp);
-    setVeredicto(v);
-    if (v.estado === 'optimo' && settings.restrictAvailability) {
-      await new Promise((r) => setTimeout(r, 30));
-      setFranjas(franjasQueDestraban(inp));
-    }
-    setEstado('listo');
+    setProgreso(null);
+    const w = new Worker(new URL('@/workers/optimality.worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    workerRef.current = w;
+    w.onmessage = (e: MessageEvent<WorkerMsg>) => {
+      if (e.data.tipo === 'progreso') {
+        setProgreso({ probando: e.data.probando, nodos: e.data.nodos });
+      } else {
+        setRes(e.data);
+        setEstado('listo');
+        w.terminate();
+        workerRef.current = null;
+      }
+    };
+    w.postMessage({
+      pending: [...d.pending],
+      settings,
+      offer: offer!,
+      actual: makespan,
+    } satisfies WorkerReq);
   }
+
+  /** Pasa el plan encontrado al armado manual, con día y turno de cada materia. */
+  function aplicarPlan() {
+    if (!res?.plan) return;
+    const terms: { id: string; subjects: string[] }[] = Array.from(
+      { length: res.minimo },
+      () => ({ id: crypto.randomUUID(), subjects: [] }),
+    );
+    const fd: Record<string, number> = {};
+    const ft: Record<string, 'm' | 't' | 'n'> = {};
+    for (const [code, t, slot] of res.plan) {
+      terms[t]?.subjects.push(code);
+      if (slot) {
+        const [dia, turno] = slot.split('-');
+        fd[code] = Number(dia);
+        ft[code] = turno as 'm' | 't' | 'n';
+      }
+    }
+    seedManual(terms, fd, ft);
+    setSimMode('manual');
+    setAplicado(true);
+  }
+
+  const mejor = res && res.minimo < makespan;
 
   return (
     <div className="mt-4 border-t border-brand-500/20 pt-3 text-sm">
@@ -490,40 +549,62 @@ function AnalisisOptimo({ makespan }: { makespan: number }) {
       )}
 
       {estado === 'corriendo' && (
-        <span className="text-slate-500 dark:text-slate-400">
-          Probando todas las combinaciones posibles…
-        </span>
-      )}
-
-      {estado === 'listo' && veredicto?.estado === 'optimo' && (
         <div className="space-y-1">
-          <div className="font-medium text-emerald-600 dark:text-emerald-400">
-            ✓ No: {makespan} cuatrimestres es el mínimo posible.
+          <div className="flex flex-wrap items-center gap-3 text-slate-500 dark:text-slate-400">
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+            <span>
+              Probando todas las combinaciones
+              {progreso ? ` (buscando un plan de ${progreso.probando} cuatris…)` : '…'}{' '}
+              <span className="tabular-nums">{segundos}s</span>
+            </span>
+            <button onClick={cancelar} className="underline hover:text-rose-500">
+              cancelar
+            </button>
           </div>
-          {veredicto.motivo && (
-            <div className="text-slate-600 dark:text-slate-400">{veredicto.motivo}</div>
-          )}
-          {franjas.length > 0 && (
-            <div className="text-amber-600 dark:text-amber-400">
-              💡 Si pudieras cursar{' '}
-              <strong>{franjas.map((f) => f.etiqueta).join(' o ')}</strong>, terminarías un
-              cuatrimestre antes.
+          {segundos >= 20 && (
+            <div className="text-xs text-slate-400">
+              Está tardando: hay muchísimas combinaciones para descartar. Podés dejarlo corriendo
+              (la página sigue andando) o cancelar y quedarte con el plan actual, que ya es muy bueno.
             </div>
           )}
         </div>
       )}
 
-      {estado === 'listo' && veredicto?.estado === 'mejorable' && (
-        <div className="text-amber-600 dark:text-amber-400">
-          Sí: existe un plan de <strong>{veredicto.minimo}</strong> cuatrimestres. Probá bajar
-          el mínimo de materias por cuatri o revisá tu disponibilidad.
+      {estado === 'listo' && res && !mejor && (
+        <div className="space-y-1">
+          <div className="font-medium text-emerald-600 dark:text-emerald-400">
+            🏆 Ya está: {makespan} cuatrimestres es lo mejor de lo mejor. No existe ninguna
+            combinación más corta.
+          </div>
+          {res.motivo && <div className="text-slate-600 dark:text-slate-400">{res.motivo}</div>}
+          {res.franjas.length > 0 && (
+            <div className="text-amber-600 dark:text-amber-400">
+              💡 Ahora bien: si pudieras cursar{' '}
+              <strong>{res.franjas.map((f) => f.etiqueta).join(' o ')}</strong>, ahí sí
+              terminarías un cuatrimestre antes.
+            </div>
+          )}
         </div>
       )}
 
-      {estado === 'listo' && veredicto?.estado === 'indeterminado' && (
-        <div className="text-slate-500 dark:text-slate-400">
-          Hay demasiadas combinaciones para verificarlo con certeza. El plan que ves es muy
-          bueno, pero no puedo garantizarte que sea el mínimo absoluto.
+      {estado === 'listo' && res && mejor && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-medium text-amber-600 dark:text-amber-400">
+            🎉 ¡Sí! Encontré un plan de <strong>{res.minimo}</strong> cuatrimestres (
+            {makespan - res.minimo} menos).
+          </span>
+          {aplicado ? (
+            <span className="text-emerald-600 dark:text-emerald-400">
+              ✓ Aplicado en el armado manual
+            </span>
+          ) : (
+            <button
+              onClick={aplicarPlan}
+              className="rounded-lg bg-brand-600 px-3 py-1 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              Usar ese plan
+            </button>
+          )}
         </div>
       )}
     </div>
