@@ -206,7 +206,12 @@ function buscarPlan(
   porMateria: Map<string, Commission[]>,
   mat: ReturnType<typeof armarMatriz>,
   onNodo?: (nodos: number) => void,
-): PlanExacto | null {
+  /** Materias que no pueden ir antes de cierto cuatrimestre (p.ej. si las
+   * desaprobás, recién podés recursarlas al siguiente). */
+  desdeCuatri?: Map<string, number>,
+  /** Tope de nodos a explorar. Sin tope, busca hasta agotar el árbol. */
+  maxNodos?: number,
+): { plan: PlanExacto | null; agotado: boolean } {
   const { graph, pending, settings } = inp;
   const cap = Math.max(1, settings.maxPerTerm);
   const esPrimerCuatri = (i: number) =>
@@ -226,6 +231,14 @@ function buscarPlan(
   const porCuatri = new Array(T + 2).fill(0);
   const diasElectivas = new Set<number>();
   let nodos = 0;
+  let agotado = false;
+  // Cupos totales del plan y cuántos llevamos usados: si lo que falta ubicar no
+  // entra en lo que queda libre, cortamos sin seguir explorando.
+  const cupoTotal = T * cap;
+  let ocupados = 0;
+  const pesoDe = (c: string) => (graph.byCode.get(c)?.annual ? 2 : 1);
+  const pesoRestante: number[] = new Array(orden.length + 1).fill(0);
+  for (let i = orden.length - 1; i >= 0; i--) pesoRestante[i] = pesoRestante[i + 1] + pesoDe(orden[i]);
 
   const libre = (t: number, ci: number): boolean => {
     for (const otro of enCuatri[t]) if (mat.choca[otro * mat.n + ci]) return false;
@@ -235,16 +248,18 @@ function buscarPlan(
   const rec = (i: number): boolean => {
     if (i >= orden.length) return true;
     if ((++nodos & 0x3fff) === 0) onNodo?.(nodos);
+    if (maxNodos != null && nodos > maxNodos) { agotado = true; return true; }
+    if (pesoRestante[i] > cupoTotal - ocupados) return false; // no entran: cortamos
     const c = orden[i];
     const s = graph.byCode.get(c)!;
     const anual = s.annual || s.startsOnlyFirstSemester;
     const comms = porMateria.get(c) ?? [];
     // Simetría entre electivas: la k-ésima no puede ir antes que la (k-1)-ésima.
     const ordEl = ordenElectiva.get(c);
-    let minT = 0;
+    let minT = desdeCuatri?.get(c) ?? 0;
     if (ordEl !== undefined && ordEl > 0) {
       const previa = sol.get(electivas[ordEl - 1]);
-      if (previa) minT = previa.t;
+      if (previa) minT = Math.max(minT, previa.t);
     }
 
     for (let t = minT; t < T; t++) {
@@ -284,6 +299,7 @@ function buscarPlan(
         sol.set(c, { t, comm });
         porCuatri[t]++;
         if (anual) porCuatri[t + 1]++;
+        ocupados += anual ? 2 : 1;
 
         if (rec(i + 1)) return true;
 
@@ -295,6 +311,7 @@ function buscarPlan(
         sol.delete(c);
         porCuatri[t]--;
         if (anual) porCuatri[t + 1]--;
+        ocupados -= anual ? 2 : 1;
         return false;
       };
 
@@ -307,9 +324,149 @@ function buscarPlan(
     return false;
   };
 
-  if (!rec(0)) return null;
+  const hallado = rec(0);
+  if (agotado || !hallado) return { plan: null, agotado };
   const out: PlanExacto = new Map();
   for (const [code, v] of sol) out.set(code, { t: v.t, slot: v.comm ? slotDe(v.comm) : null });
+  return { plan: out, agotado: false };
+}
+
+/**
+ * Cota inferior rápida teniendo en cuenta que ciertas materias no pueden ir
+ * antes de cierto cuatrimestre. Para cada materia calcula lo más temprano que
+ * puede arrancar (por sus correlativas y por la restricción) y lo suma a la
+ * cadena que cuelga de ella. Las anuales solo arrancan en 1er cuatrimestre, y
+ * eso es justamente lo que puede costar un año entero.
+ *
+ * Sirve para descartar al toque casos imposibles sin explorar todo el árbol.
+ */
+function cotaConDesde(inp: OptimalityInput, desde: Map<string, number>): number {
+  const { graph, pending, settings } = inp;
+  const esPrimero = (i: number) =>
+    (settings.startYear * 2 + (settings.startTerm - 1) + i) % 2 === 0;
+  const dur = (c: string) => (graph.byCode.get(c)?.annual ? 2 : 1);
+
+  const memoEst = new Map<string, number>();
+  const est = (c: string): number => {
+    const m = memoEst.get(c);
+    if (m !== undefined) return m;
+    memoEst.set(c, 0);
+    let e = desde.get(c) ?? 0;
+    for (const p of graph.prereqs.get(c) ?? []) {
+      if (pending.has(p)) e = Math.max(e, est(p) + dur(p));
+    }
+    const s = graph.byCode.get(c);
+    if (s && (s.annual || s.startsOnlyFirstSemester)) while (!esPrimero(e)) e++;
+    memoEst.set(c, e);
+    return e;
+  };
+
+  const memoTail = new Map<string, number>();
+  const tail = (c: string): number => {
+    const m = memoTail.get(c);
+    if (m !== undefined) return m;
+    memoTail.set(c, dur(c));
+    let best = 0;
+    for (const d of graph.dependents.get(c) ?? []) {
+      if (pending.has(d)) best = Math.max(best, tail(d));
+    }
+    const v = dur(c) + best;
+    memoTail.set(c, v);
+    return v;
+  };
+
+  let lb = 1;
+  for (const c of pending) lb = Math.max(lb, est(c) + tail(c));
+  return lb;
+}
+
+/** Cuánto te cuesta desaprobar una materia. */
+/** Tope de seguridad por consulta (muy alto): casi nunca se alcanza. Los
+ * resultados se van entregando de a uno, así que no hace falta apurar. */
+const PRESUPUESTO_RIESGO = 60_000_000;
+
+export type Riesgo = {
+  code: string;
+  /** Cuatrimestres que se atrasa tu egreso si la desaprobás (0 = ninguno).
+   * null si el análisis no llegó a determinarlo. */
+  atraso: number | null;
+  /** Último cuatrimestre (índice) en el que podés cursarla sin atrasarte. */
+  limite: number | null;
+};
+
+/**
+ * Para cada materia del PRIMER cuatrimestre del plan: ¿qué pasa si la
+ * desaprobás? Se recalcula el mínimo posible obligándola a ir un cuatrimestre
+ * más tarde (la recursada) y se compara con el plan actual.
+ *
+ * Es caro (una búsqueda exhaustiva por materia), por eso corre en el worker.
+ */
+export function analizarRiesgo(
+  inp: OptimalityInput,
+  delPrimerCuatri: string[],
+  /** Se llama con cada materia apenas se sabe, para ir mostrando resultados. */
+  onCada?: (r: Riesgo, hechas: number, total: number) => void,
+): Riesgo[] {
+  if (!inp.offer || delPrimerCuatri.length === 0) return [];
+  const offMap = offeringMap(inp.offer);
+  const disponibles = inp.settings.restrictAvailability
+    ? new Set(inp.settings.availableSlots)
+    : null;
+  const { porMateria, mat } = preparar(inp, offMap, disponibles);
+  const base = inp.actual;
+
+  /** ¿Existe un plan de T cuatrimestres con esta materia recién desde `t`?
+   * `null` = no se pudo determinar dentro del presupuesto. */
+  const entra = (code: string, t: number, T: number): boolean | null => {
+    const desde = new Map([[code, t]]);
+    // Descarte instantáneo: si ni la cota teórica entra, no hace falta buscar.
+    if (cotaConDesde(inp, desde) > T) return false;
+    const r = buscarPlan(inp, T, porMateria, mat, undefined, desde, PRESUPUESTO_RIESGO);
+    if (r.agotado) return null;
+    return !!r.plan;
+  };
+
+  const out: Riesgo[] = [];
+  let hechas = 0;
+  for (const code of delPrimerCuatri) {
+    // 1) Si la desaprobás la recursás al cuatrimestre siguiente: ¿te atrasa?
+    //    Arrancamos en la duración actual y subimos solo si hace falta.
+    let atraso: number | null = 0;
+    while (atraso !== null && atraso <= 2) {
+      const r = entra(code, 1, base + atraso);
+      if (r === null) { atraso = null; break; }
+      if (r) break;
+      atraso++;
+    }
+
+    // 2) ¿Hasta cuándo podés dejarla sin perder tiempo? La propiedad "entra
+    //    dejándola para el cuatri t o después" solo empeora al crecer t, así que
+    //    la buscamos por bisección (3 pruebas en vez de 6).
+    let limite: number | null = null;
+    if (atraso === null) {
+      limite = null;
+    } else if (atraso > 0) {
+      limite = 0; // ni siquiera aguanta un cuatrimestre: es ahora o te atrasás
+    } else {
+      let lo = 1;
+      let hi = base - 1;
+      limite = 0;
+      while (lo <= hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        const r = entra(code, mid, base);
+        if (r === null) break; // sin presupuesto: nos quedamos con lo que sabemos
+        if (r) {
+          limite = mid;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+    }
+    const r: Riesgo = { code, atraso, limite };
+    out.push(r);
+    onCada?.(r, ++hechas, delPrimerCuatri.length);
+  }
   return out;
 }
 
@@ -373,7 +530,7 @@ export function buscarMinimo(
   // Si ya está en la cota, es óptimo: no hay nada que buscar.
   if (inp.actual > lb) {
     for (let T = inp.actual - 1; T >= lb; T--) {
-      const plan = buscarPlan(inp, T, porMateria, mat, (nodos) =>
+      const { plan } = buscarPlan(inp, T, porMateria, mat, (nodos) =>
         onProgreso?.({ probando: T, nodos }),
       );
       if (!plan) break; // demostrado: no existe plan de T cuatris
@@ -392,7 +549,7 @@ export function buscarMinimo(
       const libre = preparar(inp, offMap, disponibles, undefined);
       const lbLibre = cotaInferior(inp, libre.porMateria, libre.mat);
       for (let T = inp.actual - 1; T >= lbLibre; T--) {
-        if (!buscarPlan(inp, T, libre.porMateria, libre.mat)) break;
+        if (!buscarPlan(inp, T, libre.porMateria, libre.mat).plan) break;
         sinFijarElectivas = T;
       }
     }
@@ -417,7 +574,7 @@ export function buscarMinimo(
         const prep = preparar(inp, offMap, conExtra);
         // Solo tiene sentido probar si la cota lo permite.
         if (cotaInferior(inp, prep.porMateria, prep.mat) > inp.actual - 1) continue;
-        if (buscarPlan(inp, inp.actual - 1, prep.porMateria, prep.mat)) {
+        if (buscarPlan(inp, inp.actual - 1, prep.porMateria, prep.mat).plan) {
           franjas.push({ slot: extra, etiqueta: nombreDeFranja(extra) });
         }
       }

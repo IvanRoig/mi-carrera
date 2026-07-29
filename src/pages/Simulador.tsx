@@ -497,10 +497,11 @@ function AnalisisOptimo({ makespan }: { makespan: number }) {
     });
     workerRef.current = w;
     w.onmessage = (e: MessageEvent<WorkerMsg>) => {
-      if (e.data.tipo === 'progreso') {
-        setProgreso({ probando: e.data.probando, nodos: e.data.nodos });
-      } else {
-        setRes(e.data);
+      const msg = e.data;
+      if (msg.tipo === 'progreso') {
+        setProgreso({ probando: msg.probando, nodos: msg.nodos });
+      } else if (msg.tipo === 'listo') {
+        setRes(msg);
         setEstado('listo');
         w.terminate();
         workerRef.current = null;
