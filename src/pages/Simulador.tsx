@@ -753,8 +753,15 @@ function ManualView() {
     );
   }
 
-  // Deja fijos los cuatris 0..keepUpTo (incluido) TAL CUAL están (materias y días)
-  // y autocompleta SOLO los siguientes.
+  /**
+   * Deja fijos los cuatris 0..keepUpTo (incluido) TAL CUAL están (materias y
+   * días) y autocompleta SOLO los siguientes.
+   *
+   * Regla importante: si lo que ya tenés está completo, es válido y NO se puede
+   * terminar antes, no se toca nada. Reordenar materias entre cuatrimestres sin
+   * ganar ni un cuatri no te sirve de nada y da la sensación de que la app
+   * "cambia sola" cada vez que apretás el botón.
+   */
   function autocompleteFrom(keepUpTo: number) {
     const keep = manualTerms.slice(0, keepUpTo + 1);
     const preScheduled = new Map<string, number>();
@@ -793,6 +800,15 @@ function ManualView() {
     const compl = forcedFromSchedule(res);
     for (const [c, day] of Object.entries(compl.fd)) if (!prefixCodes.has(c)) fd[c] = day;
     for (const [c, tt] of Object.entries(compl.ft)) if (!prefixCodes.has(c)) ft[c] = tt;
+
+    // ¿Vale la pena tocarlo? Solo si el plan que tenés está incompleto, tiene
+    // errores, o el nuevo termina antes. Si no, lo dejamos como está.
+    const yaEstaBien = pool.length === 0 && diag.valid;
+    if (yaEstaBien && res.makespan >= diag.makespan) {
+      setFlash(`optimo:${manualTerms[keepUpTo]?.id ?? ''}`);
+      setTimeout(() => setFlash(null), 2200);
+      return;
+    }
     seedManual(newTerms, fd, ft);
   }
 
@@ -1169,9 +1185,15 @@ function ManualView() {
                     <button
                       onClick={() => autocompleteFrom(idx)}
                       className="rounded bg-brand-500/10 px-1.5 py-0.5 text-brand-600 hover:bg-brand-500/20 dark:text-brand-300"
-                      title="Fijar hasta este cuatri (incluido) y autocompletar los siguientes"
+                      title={
+                        'Fijar hasta este cuatri (incluido) y rearmar los siguientes.\n\n' +
+                        'Si tu plan ya está completo y no se puede terminar antes, no toca nada: ' +
+                        'mover materias de cuatri sin ahorrar tiempo no sirve.'
+                      }
                     >
-                      🪄 completar desde acá
+                      {flash === `optimo:${t.id}`
+                        ? '✅ ya es lo más corto'
+                        : '🪄 completar desde acá'}
                     </button>
                     {!t.summer && t.term === 2 && !diag.terms[idx + 1]?.summer && (
                       <button
