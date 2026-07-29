@@ -4,7 +4,7 @@ import { subjects } from '../data/plan';
 import ofertaBase from '../data/oferta-base.json';
 import type { OfferData } from './conflicts';
 import { schedule } from './scheduler';
-import { analizarOptimo, cuelloDeBotella, franjasQueDestraban } from './optimality';
+import { buscarMinimo, cuelloDeBotella } from './optimality';
 import { DEFAULT_SETTINGS, TALLER_CODE } from './types';
 
 const offer = ofertaBase as OfferData;
@@ -37,15 +37,17 @@ describe('análisis de óptimo (caso real: solo noches + sábado)', () => {
   const res = schedule({ graph, pending, done, settings, offer, difficult: new Set() });
   const inp = { graph, pending, settings, offer, actual: res.makespan };
 
+  const t0 = performance.now();
+  const r = buscarMinimo(inp);
+  const ms = performance.now() - t0;
+
   it('demuestra que 6 cuatrimestres es el mínimo (5 es imposible)', () => {
-    const t0 = performance.now();
-    const v = analizarOptimo(inp);
-    const ms = performance.now() - t0;
-    console.error(`\nveredicto: ${v.estado} (${ms.toFixed(0)}ms)`);
-    if (v.estado === 'optimo') console.error(`  motivo: ${v.motivo}`);
+    console.error(`\nmínimo demostrado: ${r.minimo} (${ms.toFixed(0)}ms)`);
+    console.error(`  motivo: ${r.motivo}`);
     expect(res.makespan).toBe(6);
-    expect(v.estado).toBe('optimo');
-  }, 60000);
+    expect(r.minimo).toBe(6);
+    expect(r.plan).toBeNull(); // no hay nada mejor que aplicar
+  }, 120000);
 
   it('identifica el cuello de botella (el jueves a la noche)', () => {
     const c = cuelloDeBotella(inp);
@@ -55,27 +57,36 @@ describe('análisis de óptimo (caso real: solo noches + sábado)', () => {
   });
 
   it('detecta que liberando el viernes a la mañana se ahorraría un cuatrimestre', () => {
-    const t0 = performance.now();
-    const fs = franjasQueDestraban(inp);
-    console.error(`\nfranjas que destraban (${(performance.now() - t0).toFixed(0)}ms):`, fs.map((f) => f.etiqueta));
-    expect(fs.map((f) => f.slot)).toContain('4-m'); // viernes mañana
+    console.error('\nfranjas que destraban:', r.franjas.map((f) => f.etiqueta));
+    expect(r.franjas.map((f) => f.slot)).toContain('4-m'); // viernes mañana
+  }, 120000);
+
+  it('si le decimos que el actual es peor, encuentra el plan de 6 y lo devuelve', () => {
+    // Simulamos un plan malo de 7: debe encontrar que se puede en 6 y darnos el plan.
+    const peor = buscarMinimo({ ...inp, actual: 7 });
+    expect(peor.minimo).toBe(6);
+    expect(peor.plan).not.toBeNull();
+    // El plan devuelto usa exactamente 6 cuatrimestres y ubica todas las materias.
+    const cuatris = new Set([...peor.plan!.values()].map((v) => v.t));
+    expect(peor.plan!.size).toBe(pending.size);
+    expect(Math.max(...cuatris)).toBeLessThanOrEqual(5);
   }, 120000);
 });
 
 describe('análisis de óptimo: casos generales', () => {
   it('sin filtro de disponibilidad no sugiere franjas', () => {
     const universe = new Set(subjects.map((s) => s.code).filter((c) => c !== TALLER_CODE));
-    const inp = {
+    const r = buscarMinimo({
       graph, pending: universe, settings: { ...DEFAULT_SETTINGS }, offer, actual: 11,
-    };
-    expect(franjasQueDestraban(inp)).toEqual([]);
-  });
+    });
+    expect(r.franjas).toEqual([]);
+  }, 300000);
 
   it('no explota sin materias pendientes', () => {
     const inp = {
       graph, pending: new Set<string>(), settings: { ...DEFAULT_SETTINGS }, offer, actual: 0,
     };
-    expect(analizarOptimo(inp).estado).toBe('optimo');
+    expect(buscarMinimo(inp).minimo).toBe(0);
     expect(cuelloDeBotella(inp)).toBeNull();
   });
 });
