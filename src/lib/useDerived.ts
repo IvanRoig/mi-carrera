@@ -21,6 +21,8 @@ export type Derived = {
   statuses: Map<string, SubjectStatus>;
   done: Set<string>;
   pending: Set<string>;
+  /** Las que estás cursando ahora: ocupan el primer cuatrimestre del plan. */
+  enCurso: Set<string>;
   /** Materias consideradas (todas, menos Taller si está descartado). */
   universe: Set<string>;
   /** ¿El usuario ya cargó algún dato? */
@@ -61,10 +63,12 @@ export function useDerived(): Derived {
     const statuses = computeStatuses(graph, user);
     const approvedSet = new Set(user.approved.map((a) => a.code));
 
+    // "Cursando" no es lo mismo que "aprobada": todavía te falta, pero ya sabés
+    // en qué cuatrimestre va (el que estás haciendo). Sirve para habilitar
+    // correlativas, pero sigue contando como pendiente.
+    const enCurso = new Set(user.inProgress.filter((c) => universe.has(c)));
     const done = new Set<string>(
-      [...approvedSet, ...user.regularized, ...user.inProgress].filter((c) =>
-        universe.has(c),
-      ),
+      [...approvedSet, ...user.regularized].filter((c) => universe.has(c)),
     );
     const pending = new Set([...universe].filter((c) => !done.has(c)));
 
@@ -108,6 +112,7 @@ export function useDerived(): Derived {
       statuses,
       done,
       pending,
+      enCurso,
       universe,
       loaded,
       progress: {
@@ -132,6 +137,21 @@ export function useDerived(): Derived {
  * que tocás una materia en otra solapa. Memoizado por (approved/regularized/
  * inProgress/settings/difficult) y la oferta — no por el plan manual.
  */
+/**
+ * Lo que estás cursando AHORA ocupa el primer cuatrimestre del plan: no está
+ * aprobado todavía, y lo que depende de ello recién puede ir después. Si no,
+ * el simulador arrancaría de nuevo en el mismo cuatrimestre y te pondría una
+ * materia junto a su propia correlativa.
+ */
+export function enCursoOptions(d: Pick<Derived, 'pending' | 'enCurso'>) {
+  const fijas = [...d.enCurso].filter((c) => d.pending.has(c));
+  return {
+    pending: new Set([...d.pending].filter((c) => !d.enCurso.has(c))),
+    preScheduled: fijas.length ? new Map(fijas.map((c) => [c, 0])) : undefined,
+    firstFreeTerm: fijas.length ? 1 : 0,
+  };
+}
+
 export function useSchedule(): ScheduleResult {
   const user = useStore((s) => s.user);
   const offer = useStore((s) => s.offer);
@@ -149,13 +169,13 @@ function computeSchedule(
     subjects.map((s) => s.code).filter((c) => includeTaller || c !== TALLER_CODE),
   );
   const done = new Set<string>(
-    [
-      ...user.approved.map((a) => a.code),
-      ...user.regularized,
-      ...user.inProgress,
-    ].filter((c) => universe.has(c)),
+    [...user.approved.map((a) => a.code), ...user.regularized].filter((c) =>
+      universe.has(c),
+    ),
   );
-  const pending = new Set([...universe].filter((c) => !done.has(c)));
+  const todas = new Set([...universe].filter((c) => !done.has(c)));
+  const enCurso = new Set(user.inProgress.filter((c) => todas.has(c)));
+  const { pending, preScheduled, firstFreeTerm } = enCursoOptions({ pending: todas, enCurso });
   const scarcity = offer ? scarcityFromOffer(offer) : undefined;
   return schedule({
     graph,
@@ -166,5 +186,7 @@ function computeSchedule(
     difficult: new Set(user.difficult),
     scarcity,
     electivePref,
+    preScheduled,
+    firstFreeTerm,
   });
 }

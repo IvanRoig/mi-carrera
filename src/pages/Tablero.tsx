@@ -32,6 +32,11 @@ export function Tablero() {
   const grad = sched.graduation;
   const restantes = sched.makespan;
   const chain = sched.criticalChain;
+  // Si marcaste materias como "cursando", el primer cuatri del plan es ese
+  // mismo: no es una sugerencia, es lo que ya estás haciendo.
+  const cursandoAhora =
+    (sched.terms[0]?.subjects.length ?? 0) > 0 &&
+    sched.terms[0].subjects.every((c) => d.enCurso.has(c));
   const alerts = generateAlerts(
     graph,
     d.statuses,
@@ -182,8 +187,8 @@ export function Tablero() {
         {user.inProgress.length === 0 ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">
             No tenés materias marcadas como “en curso”. Marcálas desde la
-            solapa <strong>Materias</strong> para que el simulador las cuente
-            como aprobadas al cierre.
+            solapa <strong>Materias</strong> y el simulador las va a ubicar en
+            el cuatrimestre que estás haciendo, en vez de sugerirte otras.
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -231,11 +236,11 @@ export function Tablero() {
       {/* Tu próximo cuatri (el que fijaste desde el armado manual) */}
       {pinned && pinned.items.length > 0 && <PinnedTermCard />}
 
-      {/* Próximo cuatri sugerido */}
+      {/* Próximo cuatri: el que estás cursando, o el que sugiere el simulador */}
       {d.loaded && sched.terms.length > 0 && (
         <section>
           <h3 className="mb-3 text-lg font-semibold">
-            Próximo cuatrimestre sugerido{' '}
+            {cursandoAhora ? 'Lo que estás cursando' : 'Próximo cuatrimestre sugerido'}{' '}
             <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
               ({termLabel(sched.terms[0].term, sched.terms[0].year)})
             </span>

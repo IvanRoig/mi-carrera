@@ -102,6 +102,7 @@ export function Intocables() {
       actual: sched.makespan,
       electivePref,
       materias,
+      enCurso: [...d.enCurso],
     } satisfies WorkerReq);
   }
 

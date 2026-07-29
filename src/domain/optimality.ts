@@ -38,6 +38,8 @@ export type OptimalityInput = {
   /** Electivas que elegiste a mano (cupo → día). El análisis las respeta, igual
    * que el simulador: si no, compararía contra un plan que vos no querés. */
   electivePref?: Record<string, number>;
+  /** Materias que estás cursando: van fijas en el cuatrimestre actual. */
+  enCurso?: string[];
 };
 
 /** Dónde queda cada materia: cuatrimestre y franja "día-turno" (null si no tiene horario). */
@@ -211,6 +213,8 @@ function buscarPlan(
   desdeCuatri?: Map<string, number>,
   /** Tope de nodos a explorar. Sin tope, busca hasta agotar el árbol. */
   maxNodos?: number,
+  /** Materias con cuatrimestre ya decidido (las que estás cursando). */
+  fijoEn?: Map<string, number>,
 ): { plan: PlanExacto | null; agotado: boolean } {
   const { graph, pending, settings } = inp;
   const cap = Math.max(1, settings.maxPerTerm);
@@ -255,6 +259,7 @@ function buscarPlan(
     const anual = s.annual || s.startsOnlyFirstSemester;
     const comms = porMateria.get(c) ?? [];
     // Simetría entre electivas: la k-ésima no puede ir antes que la (k-1)-ésima.
+    const fijo = fijoEn?.get(c);
     const ordEl = ordenElectiva.get(c);
     let minT = desdeCuatri?.get(c) ?? 0;
     if (ordEl !== undefined && ordEl > 0) {
@@ -263,6 +268,7 @@ function buscarPlan(
     }
 
     for (let t = minT; t < T; t++) {
+      if (fijo != null && t !== fijo) continue; // ya sabemos cuándo va
       if (anual && (!esPrimerCuatri(t) || t + 1 >= T)) continue;
       if (porCuatri[t] >= cap) continue;
       if (anual && porCuatri[t + 1] >= cap) continue;
@@ -419,9 +425,19 @@ export function analizarRiesgo(
    * `null` = no se pudo determinar dentro del presupuesto. */
   const entra = (code: string, t: number, T: number): boolean | null => {
     const desde = new Map([[code, t]]);
+    // Las demás que estás cursando siguen donde están: solo se mueve la que
+    // estamos evaluando.
+    const fijas = new Map(
+      (inp.enCurso ?? [])
+        .filter((c) => c !== code && inp.pending.has(c))
+        .map((c) => [c, 0] as const),
+    );
     // Descarte instantáneo: si ni la cota teórica entra, no hace falta buscar.
     if (cotaConDesde(inp, desde) > T) return false;
-    const r = buscarPlan(inp, T, porMateria, mat, undefined, desde, PRESUPUESTO_RIESGO);
+    const r = buscarPlan(
+      inp, T, porMateria, mat, undefined, desde, PRESUPUESTO_RIESGO,
+      fijas.size ? fijas : undefined,
+    );
     if (r.agotado) return null;
     return !!r.plan;
   };
@@ -522,6 +538,9 @@ export function buscarMinimo(
     ? new Set(inp.settings.availableSlots)
     : null;
   const { porMateria, mat } = preparar(inp, offMap, disponibles);
+  const fijas = inp.enCurso?.length
+    ? new Map(inp.enCurso.filter((c) => inp.pending.has(c)).map((c) => [c, 0]))
+    : undefined;
 
   const lb = cotaInferior(inp, porMateria, mat);
   let minimo = inp.actual;
@@ -530,8 +549,10 @@ export function buscarMinimo(
   // Si ya está en la cota, es óptimo: no hay nada que buscar.
   if (inp.actual > lb) {
     for (let T = inp.actual - 1; T >= lb; T--) {
-      const { plan } = buscarPlan(inp, T, porMateria, mat, (nodos) =>
-        onProgreso?.({ probando: T, nodos }),
+      const { plan } = buscarPlan(
+        inp, T, porMateria, mat,
+        (nodos) => onProgreso?.({ probando: T, nodos }),
+        undefined, undefined, fijas,
       );
       if (!plan) break; // demostrado: no existe plan de T cuatris
       minimo = T;
@@ -549,7 +570,7 @@ export function buscarMinimo(
       const libre = preparar(inp, offMap, disponibles, undefined);
       const lbLibre = cotaInferior(inp, libre.porMateria, libre.mat);
       for (let T = inp.actual - 1; T >= lbLibre; T--) {
-        if (!buscarPlan(inp, T, libre.porMateria, libre.mat).plan) break;
+        if (!buscarPlan(inp, T, libre.porMateria, libre.mat, undefined, undefined, undefined, fijas).plan) break;
         sinFijarElectivas = T;
       }
     }
@@ -574,7 +595,7 @@ export function buscarMinimo(
         const prep = preparar(inp, offMap, conExtra);
         // Solo tiene sentido probar si la cota lo permite.
         if (cotaInferior(inp, prep.porMateria, prep.mat) > inp.actual - 1) continue;
-        if (buscarPlan(inp, inp.actual - 1, prep.porMateria, prep.mat).plan) {
+        if (buscarPlan(inp, inp.actual - 1, prep.porMateria, prep.mat, undefined, undefined, undefined, fijas).plan) {
           franjas.push({ slot: extra, etiqueta: nombreDeFranja(extra) });
         }
       }
