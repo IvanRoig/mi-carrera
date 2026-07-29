@@ -51,7 +51,7 @@ const ESTILO: Record<Nivel, { punto: string; texto: string; chip: string; rotulo
   },
 };
 
-export function Intocables() {
+export function Intocables({ materias: forzadas }: { materias?: string[] } = {}) {
   const d = useDerived();
   const sched = useSchedule();
   const name = useSubjectName();
@@ -63,7 +63,10 @@ export function Intocables() {
   const [riesgos, setRiesgos] = useState<Riesgo[]>([]);
   const workerRef = useRef<Worker | null>(null);
 
-  const materias = sched.terms[0]?.subjects ?? [];
+  const materias = forzadas ?? sched.terms[0]?.subjects ?? [];
+  // Clave estable: `forzadas` llega como array nuevo en cada render, y usarlo de
+  // dependencia haría que el efecto se dispare para siempre.
+  const claveMaterias = materias.join(',');
 
   // Si cambian los datos, lo calculado deja de valer.
   useEffect(() => {
@@ -71,7 +74,7 @@ export function Intocables() {
     workerRef.current = null;
     setEstado('inicial');
     setRiesgos([]);
-  }, [sched, settings, offer, electivePref]);
+  }, [claveMaterias, settings, offer, electivePref]);
 
   useEffect(() => () => workerRef.current?.terminate(), []);
 
@@ -182,7 +185,13 @@ export function Intocables() {
                         ? r.limite != null && r.limite > 0
                           ? `podés dejarla hasta ${etiquetaCuatri(r.limite)}`
                           : 'no te mueve la fecha de egreso'
-                        : 'demasiadas combinaciones para saberlo'}
+                        : r.alSumo != null
+                          ? r.alSumo === 0
+                            ? 'no te mueve la fecha de egreso'
+                            : `te atrasa a lo sumo ${r.alSumo} ${
+                                r.alSumo === 1 ? 'cuatrimestre' : 'cuatrimestres'
+                              }`
+                          : 'demasiadas combinaciones para saberlo'}
                   </span>
                 </li>
               );
