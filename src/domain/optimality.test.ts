@@ -4,7 +4,7 @@ import { subjects } from '../data/plan';
 import ofertaBase from '../data/oferta-base.json';
 import type { OfferData } from './conflicts';
 import { schedule } from './scheduler';
-import { buscarMinimo, cuelloDeBotella } from './optimality';
+import { buscarMinimo, cuelloDeBotella, analizarRiesgo } from './optimality';
 import { DEFAULT_SETTINGS, TALLER_CODE } from './types';
 
 const offer = ofertaBase as OfferData;
@@ -117,4 +117,31 @@ describe('respeta la electiva que elegiste a mano', () => {
     // Con la electiva fijada al jueves no baja de 6; sin fijarla, tampoco menos.
     expect(r.minimo).toBe(6);
   }, 120000);
+});
+
+describe('análisis de riesgo: qué pasa si desaprobás', () => {
+  const byName3 = new Map(subjects.map((s) => [s.name, s]));
+  const pend = new Set(PENDIENTES.map((n) => byName3.get(n)!.code));
+  const done3 = new Set(subjects.map((s) => s.code).filter((c) => !pend.has(c)));
+  const settings3 = {
+    ...DEFAULT_SETTINGS, startYear: 2026, startTerm: 2 as const, maxPerTerm: 6,
+    restrictAvailability: true, availableSlots: NOCHES_Y_SABADO,
+  };
+
+  it('detecta las materias que no podés desaprobar sin atrasarte', () => {
+    const res = schedule({ graph, pending: pend, done: done3, settings: settings3, offer, difficult: new Set() });
+    const r = analizarRiesgo(
+      { graph, pending: pend, settings: settings3, offer, actual: res.makespan },
+      res.terms[0].subjects,
+    );
+    const porNombre = new Map(r.map((x) => [graph.byCode.get(x.code)!.name, x]));
+    // Estas dos encabezan cadenas que no tienen margen.
+    expect(porNombre.get('Seguridad de la Información')?.atraso).toBeGreaterThan(0);
+    expect(porNombre.get('Requisitos Avanzados')?.atraso).toBeGreaterThan(0);
+    // Estas sí lo tienen.
+    expect(porNombre.get('Física II')?.atraso).toBe(0);
+    expect(porNombre.get('Autómatas y Gramáticas')?.atraso).toBe(0);
+    // Y las que tienen margen dicen hasta cuándo.
+    expect(porNombre.get('Física II')?.limite).toBeGreaterThan(0);
+  }, 300000);
 });

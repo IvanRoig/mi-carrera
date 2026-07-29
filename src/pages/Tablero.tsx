@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useDerived, useSchedule } from '@/lib/useDerived';
 import { useStore } from '@/store/useStore';
 import { DAY_SHORT } from '@/domain/conflicts';
+import { Intocables } from '@/components/Intocables';
+import { HorarioSemanal } from '@/components/HorarioSemanal';
 import { termToClipboardText, copyToClipboard, type TermItem } from '@/lib/exportTerm';
 import { getSubject } from '@/data/plan';
 import { graph } from '@/domain/planGraph';
@@ -274,6 +276,18 @@ export function Tablero() {
               );
             })}
           </div>
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+            <h4 className="mb-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+              Cómo te queda la semana
+            </h4>
+            <HorarioSemanal
+              materias={sched.terms[0].subjects.map((code) => {
+                const commission = sched.commissionByCode.get(code);
+                return { code, titulo: commission?.label, commission };
+              })}
+            />
+          </div>
+          <Intocables />
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
             Detalle completo del cronograma en la solapa{' '}
             <strong>Simulador</strong>.
@@ -349,6 +363,10 @@ function PinnedTermCard() {
             Quitar
           </button>
         </div>
+      </div>
+
+      <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+        <HorarioSemanal materias={items} />
       </div>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
