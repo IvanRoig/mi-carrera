@@ -15,6 +15,8 @@ export type WorkerReq = {
   settings: UserSettings;
   offer: OfferData;
   actual: number;
+  /** Electivas elegidas a mano (cupo → día). */
+  electivePref?: Record<string, number>;
 };
 
 export type WorkerMsg =
@@ -26,6 +28,7 @@ export type WorkerMsg =
       plan: [string, number, string | null][] | null;
       motivo?: string;
       franjas: { slot: string; etiqueta: string }[];
+      sinFijarElectivas?: number;
     };
 
 function serializar(plan: PlanExacto | null): [string, number, string | null][] | null {
@@ -34,10 +37,10 @@ function serializar(plan: PlanExacto | null): [string, number, string | null][] 
 }
 
 self.onmessage = (e: MessageEvent<WorkerReq>) => {
-  const { pending, settings, offer, actual } = e.data;
+  const { pending, settings, offer, actual, electivePref } = e.data;
   let ultimoAviso = 0;
   const r = buscarMinimo(
-    { graph, pending: new Set(pending), settings, offer, actual },
+    { graph, pending: new Set(pending), settings, offer, actual, electivePref },
     ({ probando, nodos }) => {
       // No inundamos el hilo principal: como mucho un aviso cada 200ms.
       const ahora = Date.now();
@@ -52,5 +55,6 @@ self.onmessage = (e: MessageEvent<WorkerReq>) => {
     plan: serializar(r.plan),
     motivo: r.motivo,
     franjas: r.franjas,
+    sinFijarElectivas: r.sinFijarElectivas,
   } as WorkerMsg);
 };

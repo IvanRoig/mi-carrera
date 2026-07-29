@@ -448,6 +448,7 @@ function AnalisisOptimo({ makespan }: { makespan: number }) {
   const d = useDerived();
   const settings = useStore((st) => st.user.settings);
   const offer = useStore((st) => st.offer);
+  const electivePref = useStore((st) => st.electivePref);
   const seedManual = useStore((st) => st.seedManual);
   const setSimMode = useStore((st) => st.setSimMode);
 
@@ -510,6 +511,7 @@ function AnalisisOptimo({ makespan }: { makespan: number }) {
       settings,
       offer: offer!,
       actual: makespan,
+      electivePref,
     } satisfies WorkerReq);
   }
 
@@ -584,6 +586,15 @@ function AnalisisOptimo({ makespan }: { makespan: number }) {
             combinación más corta.
           </div>
           {res.motivo && <div className="text-slate-600 dark:text-slate-400">{res.motivo}</div>}
+          {res.sinFijarElectivas != null && res.sinFijarElectivas < makespan && (
+            <div className="text-amber-600 dark:text-amber-400">
+              🎯 Ojo: la electiva que elegiste a mano te cuesta{' '}
+              {makespan - res.sinFijarElectivas} cuatrimestre
+              {makespan - res.sinFijarElectivas > 1 ? 's' : ''}. Si la dejás en{' '}
+              <strong>“sin preferencia”</strong> (en Materias), terminarías en{' '}
+              <strong>{res.sinFijarElectivas}</strong>.
+            </div>
+          )}
           {res.franjas.length > 0 && (
             <div className="text-amber-600 dark:text-amber-400">
               💡 Ahora bien: si pudieras cursar{' '}

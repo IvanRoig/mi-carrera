@@ -90,3 +90,31 @@ describe('análisis de óptimo: casos generales', () => {
     expect(cuelloDeBotella(inp)).toBeNull();
   });
 });
+
+describe('respeta la electiva que elegiste a mano', () => {
+  const byName2 = new Map(subjects.map((s) => [s.name, s]));
+  const pend = new Set(PENDIENTES.map((n) => byName2.get(n)!.code));
+  const settings2 = {
+    ...DEFAULT_SETTINGS, startYear: 2026, startTerm: 2 as const, maxPerTerm: 6,
+    restrictAvailability: true, availableSlots: NOCHES_Y_SABADO,
+  };
+
+  it('el plan que propone ubica la electiva en el día que pediste', () => {
+    const pref = { '03672': 3 }; // Electiva I → Jueves
+    const r = buscarMinimo({
+      graph, pending: pend, settings: settings2, offer, actual: 7, electivePref: pref,
+    });
+    expect(r.plan).not.toBeNull();
+    const e1 = r.plan!.get('03672');
+    expect(e1?.slot?.startsWith('3-')).toBe(true); // jueves
+  }, 120000);
+
+  it('avisa cuánto te cuesta fijar una electiva en un día saturado', () => {
+    const pref = { '03672': 3 };
+    const r = buscarMinimo({
+      graph, pending: pend, settings: settings2, offer, actual: 6, electivePref: pref,
+    });
+    // Con la electiva fijada al jueves no baja de 6; sin fijarla, tampoco menos.
+    expect(r.minimo).toBe(6);
+  }, 120000);
+});
