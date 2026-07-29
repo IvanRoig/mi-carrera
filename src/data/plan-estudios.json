@@ -853,7 +853,11 @@
       "code": "03672",
       "name": "Electiva I",
       "year": 5,
-      "prereqs": [],
+      "prereqs": [
+        "03652",
+        "03653",
+        "03661"
+      ],
       "weeklyHours": 4,
       "totalHours": 64,
       "track": "Electiva",
@@ -865,7 +869,11 @@
       "code": "03673",
       "name": "Electiva II",
       "year": 5,
-      "prereqs": [],
+      "prereqs": [
+        "03652",
+        "03653",
+        "03661"
+      ],
       "weeklyHours": 4,
       "totalHours": 64,
       "track": "Electiva",
@@ -877,7 +885,11 @@
       "code": "03674",
       "name": "Electiva III",
       "year": 5,
-      "prereqs": [],
+      "prereqs": [
+        "03652",
+        "03653",
+        "03661"
+      ],
       "weeklyHours": 4,
       "totalHours": 64,
       "track": "Electiva",
