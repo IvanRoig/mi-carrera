@@ -45,9 +45,32 @@ export function HorarioSemanal({ materias }: { materias: BloqueMateria[] }) {
   const hIni = Math.floor(desde / 60);
   const hFin = Math.ceil(hasta / 60);
   const horas = hFin - hIni;
-  const ALTO = 34; // px por hora
-  const alturaTotal = horas * ALTO;
-  const y = (min: number) => ((min - hIni * 60) / 60) * ALTO;
+  const ALTO = 34; // px por hora con clase
+  const ALTO_HUECO = 12; // las horas muertas se achican (si cursás 8 y 19, el medio sobra)
+
+  // Alto de cada hora según si hay clase en algún día.
+  const ocupada = Array.from({ length: horas }, (_, i) => {
+    const ini = (hIni + i) * 60;
+    return bloques.some((b) => b.ini < ini + 60 && b.fin > ini);
+  });
+  const altoDe = (i: number) => (ocupada[i] ? ALTO : ALTO_HUECO);
+  // Posición acumulada del comienzo de cada hora.
+  const top: number[] = [0];
+  for (let i = 0; i < horas; i++) top.push(top[i] + altoDe(i));
+  const alturaTotal = top[horas];
+  const y = (min: number) => {
+    const i = Math.min(horas - 1, Math.max(0, Math.floor(min / 60) - hIni));
+    return top[i] + ((min - (hIni + i) * 60) / 60) * altoDe(i);
+  };
+  // Tramos comprimidos, para marcarlos con un "⋯" y que se note el salto.
+  const huecos: { top: number; alto: number }[] = [];
+  for (let i = 0; i < horas; i++) {
+    if (ocupada[i]) continue;
+    let j = i;
+    while (j < horas && !ocupada[j]) j++;
+    if (j - i >= 2) huecos.push({ top: top[i], alto: top[j] - top[i] });
+    i = j - 1;
+  }
 
   // Días con al menos una clase (para no mostrar columnas vacías si no hacen falta).
   const diasUsados = DIAS.filter((d) => bloques.some((b) => b.day === d));
@@ -55,7 +78,8 @@ export function HorarioSemanal({ materias }: { materias: BloqueMateria[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[520px]">
+      {/* pb-1.5: el rótulo de la última hora sobresale media línea */}
+      <div className="min-w-[520px] pb-1.5">
         {/* Encabezado de días */}
         <div
           className="grid gap-1 pl-10"
@@ -74,15 +98,19 @@ export function HorarioSemanal({ materias }: { materias: BloqueMateria[] }) {
         <div className="relative flex">
           {/* Escala horaria */}
           <div className="relative w-10 shrink-0" style={{ height: alturaTotal }}>
-            {Array.from({ length: horas + 1 }, (_, i) => (
-              <div
-                key={i}
-                className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-slate-400"
-                style={{ top: i * ALTO }}
-              >
-                {String(hIni + i).padStart(2, '0')}
-              </div>
-            ))}
+            {/* Solo rotulamos las horas que se ven: en los tramos comprimidos no
+                entra el número y se amontonaría. */}
+            {Array.from({ length: horas + 1 }, (_, i) => i)
+              .filter((i) => i === 0 || i === horas || ocupada[i] || ocupada[i - 1])
+              .map((i) => (
+                <div
+                  key={i}
+                  className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-slate-400"
+                  style={{ top: top[i] }}
+                >
+                  {String(hIni + i).padStart(2, '0')}
+                </div>
+              ))}
           </div>
 
           {/* Columnas de días */}
@@ -95,12 +123,24 @@ export function HorarioSemanal({ materias }: { materias: BloqueMateria[] }) {
           >
             {/* Líneas de hora, de fondo */}
             <div className="pointer-events-none absolute inset-0">
-              {Array.from({ length: horas + 1 }, (_, i) => (
+              {Array.from({ length: horas + 1 }, (_, i) => i)
+                .filter((i) => i === 0 || i === horas || ocupada[i] || ocupada[i - 1])
+                .map((i) => (
+                  <div
+                    key={i}
+                    className="absolute inset-x-0 border-t border-slate-200/70 dark:border-slate-700/50"
+                    style={{ top: top[i] }}
+                  />
+                ))}
+              {/* Franja de horas libres, comprimida */}
+              {huecos.map((h) => (
                 <div
-                  key={i}
-                  className="absolute inset-x-0 border-t border-slate-200/70 dark:border-slate-700/50"
-                  style={{ top: i * ALTO }}
-                />
+                  key={h.top}
+                  className="absolute inset-x-0 flex items-center justify-center text-[10px] text-slate-300 dark:text-slate-600"
+                  style={{ top: h.top, height: h.alto }}
+                >
+                  ⋯
+                </div>
               ))}
             </div>
 
