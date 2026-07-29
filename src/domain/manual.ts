@@ -4,6 +4,7 @@
  * (igual que el automático: backtracking), respetando el día que forzaste.
  */
 import type { Graph } from './graph';
+import { ancestorsOf } from './graph';
 import type { UserSettings } from './types';
 import { calendarOf } from './scheduler';
 import type { Commission, OfferData } from './conflicts';
@@ -16,7 +17,10 @@ import {
   turnoOf,
 } from './conflicts';
 
-export type ManualTermInput = { id: string; subjects: string[] };
+export type ManualTermInput = { id: string; subjects: string[]; summer?: boolean };
+
+/** Tope de materias en el cuatrimestre intensivo de verano. */
+export const SUMMER_MAX = 2;
 
 export type SubjectDiag = {
   code: string;
@@ -43,6 +47,10 @@ export type TermDiag = {
   year: number;
   term: 1 | 2;
   isFirstSemester: boolean;
+  /** Cuatrimestre intensivo de verano. */
+  summer?: boolean;
+  /** Problemas propios del verano (tope, correlativas entre sí, transversales). */
+  summerErrors?: string[];
   subjects: SubjectDiag[];
   /** Materias anuales que arrancaron el cuatri anterior y siguen ocupando este. */
   continuing: SubjectDiag[];
@@ -61,6 +69,11 @@ export type ManualPlanDiag = {
   placedCount: number;
   valid: boolean;
 };
+
+/** Nombre legible de una materia (para los mensajes de error). */
+function nameOf(graph: Graph, code: string): string {
+  return graph.byCode.get(code)?.name ?? code;
+}
 
 /** Ordena comisiones por preferencia: disponibilidad, luego noche. */
 function sortByPref(comms: Commission[], availableSlots: Set<string> | null): Commission[] {
@@ -98,9 +111,30 @@ export function validateManualPlan(
   const terms: TermDiag[] = [];
   let valid = true;
 
+  // Calendario de cada posición. Los veranos no consumen un cuatri regular:
+  // caen entre el 2° cuatri de un año y el 1° del siguiente (enero/febrero).
+  const calendars = (() => {
+    const out: { year: number; term: 1 | 2; isFirstSemester: boolean; summer: boolean }[] = [];
+    let reg = 0;
+    for (const t of manualTerms) {
+      if (t.summer) {
+        // El verano pertenece al año del cuatri regular que viene después.
+        const next = calendarOf(reg, settings.startYear, settings.startTerm);
+        out.push({ year: next.year, term: 1, isFirstSemester: false, summer: true });
+      } else {
+        out.push({ ...calendarOf(reg++, settings.startYear, settings.startTerm), summer: false });
+      }
+    }
+    return { list: out, regularCount: reg };
+  })();
+
   manualTerms.forEach((t, i) => {
-    const cal = calendarOf(i, settings.startYear, settings.startTerm);
-    const commsOf = (code: string) => sortByPref(offMap?.get(code)?.commissions ?? [], availableSlots);
+    const cal = calendars.list[i];
+    const isSummer = !!t.summer;
+    // En verano la oferta depende de la demanda (no se sabe de antemano), así
+    // que no aplicamos restricciones de horario: elegís materia y día libremente.
+    const commsOf = (code: string) =>
+      isSummer ? [] : sortByPref(offMap?.get(code)?.commissions ?? [], availableSlots);
 
     // --- Posición de cada materia: función PURA de su propio día/turno forzado ---
     // Nada depende de las otras materias: mover o sacar una jamás reubica a otra.
@@ -149,12 +183,29 @@ export function validateManualPlan(
 
     // --- Conflictos: simétrico, no mueve nada. Marca a ambas materias que chocan. ---
     const conflictSet = new Set<string>();
-    const placed = t.subjects.filter((c) => commByCode.has(c));
-    for (let a = 0; a < placed.length; a++) {
-      for (let b = a + 1; b < placed.length; b++) {
-        if (commissionsOverlap(commByCode.get(placed[a])!, commByCode.get(placed[b])!)) {
-          conflictSet.add(placed[a]);
-          conflictSet.add(placed[b]);
+    if (isSummer) {
+      // En verano no hay comisiones conocidas, pero sigue valiendo "una materia
+      // por franja": si pusiste dos en el mismo día y turno, chocan.
+      for (let a = 0; a < t.subjects.length; a++) {
+        for (let b = a + 1; b < t.subjects.length; b++) {
+          const ca = t.subjects[a];
+          const cb = t.subjects[b];
+          const da = forcedDay[ca];
+          const db = forcedDay[cb];
+          if (da != null && da === db && forcedTurno[ca] === forcedTurno[cb]) {
+            conflictSet.add(ca);
+            conflictSet.add(cb);
+          }
+        }
+      }
+    } else {
+      const placed = t.subjects.filter((c) => commByCode.has(c));
+      for (let a = 0; a < placed.length; a++) {
+        for (let b = a + 1; b < placed.length; b++) {
+          if (commissionsOverlap(commByCode.get(placed[a])!, commByCode.get(placed[b])!)) {
+            conflictSet.add(placed[a]);
+            conflictSet.add(placed[b]);
+          }
         }
       }
     }
@@ -174,15 +225,22 @@ export function validateManualPlan(
       const reqs = graph.prereqs.get(code) ?? [];
       const missing = reqs.filter((p) => (finishByCode.get(p) ?? Infinity) >= i);
       let calendarError: string | undefined;
-      if ((s.annual || s.startsOnlyFirstSemester) && !cal.isFirstSemester) {
-        calendarError = 'solo puede arrancar en 1er cuatrimestre';
+      if (s.annual || s.startsOnlyFirstSemester) {
+        if (isSummer) calendarError = 'no se puede hacer en el verano intensivo (es anual)';
+        else if (!cal.isFirstSemester) calendarError = 'solo puede arrancar en 1er cuatrimestre';
       }
 
       const commission = commByCode.get(code);
       const forcedNoDay = forcedNoDaySet.has(code);
       const hasConflict = conflictSet.has(code);
       if (hasConflict) conflictCount++;
-      const notOffered = !commission && !forcedNoDay && !s.isElective && (offMap?.get(code)?.commissions.length ?? 0) === 0;
+      // En verano la oferta no se conoce de antemano: nunca avisamos "no ofertada".
+      const notOffered =
+        !isSummer &&
+        !commission &&
+        !forcedNoDay &&
+        !s.isElective &&
+        (offMap?.get(code)?.commissions.length ?? 0) === 0;
       const notAvailable = !!(
         commission &&
         availableSlots &&
@@ -227,8 +285,41 @@ export function validateManualPlan(
         .map((sd) => ({ ...sd, missingPrereqs: [], ok: true })) ?? [];
 
     const count = t.subjects.length + continuing.length;
-    const overCapacity = count > settings.maxPerTerm;
+    const cap = isSummer ? SUMMER_MAX : settings.maxPerTerm;
+    const overCapacity = count > cap;
     if (overCapacity) valid = false;
+
+    // --- Reglas propias del verano intensivo ---
+    const summerErrors: string[] = [];
+    if (isSummer) {
+      if (t.subjects.length > SUMMER_MAX) {
+        summerErrors.push(`En el verano podés cursar hasta ${SUMMER_MAX} materias.`);
+      }
+      // No pueden ser correlativas una de la otra (ni directa ni indirectamente).
+      for (let a = 0; a < t.subjects.length; a++) {
+        for (let b = a + 1; b < t.subjects.length; b++) {
+          const ca = t.subjects[a];
+          const cb = t.subjects[b];
+          if (ancestorsOf(graph, cb).has(ca) || ancestorsOf(graph, ca).has(cb)) {
+            const [first, second] = ancestorsOf(graph, cb).has(ca) ? [ca, cb] : [cb, ca];
+            summerErrors.push(
+              `${nameOf(graph, first)} es correlativa de ${nameOf(graph, second)}: no podés hacerlas juntas en el verano.`,
+            );
+          }
+        }
+      }
+      // Ni dos transversales (Inglés / Computación).
+      const transversales = t.subjects.filter((c) => graph.byCode.get(c)?.track === 'Transversal');
+      if (transversales.length > 1) {
+        summerErrors.push(
+          `Solo una transversal (Inglés/Computación) por verano: sacá ${transversales
+            .slice(1)
+            .map((c) => nameOf(graph, c))
+            .join(', ')}.`,
+        );
+      }
+      if (summerErrors.length) valid = false;
+    }
 
     terms.push({
       id: t.id,
@@ -236,6 +327,8 @@ export function validateManualPlan(
       year: cal.year,
       term: cal.term,
       isFirstSemester: cal.isFirstSemester,
+      summer: isSummer,
+      summerErrors: summerErrors.length ? summerErrors : undefined,
       subjects: diags,
       continuing,
       count,
@@ -250,9 +343,28 @@ export function validateManualPlan(
   for (const [, f] of finishByCode) if (f > lastFinish) lastFinish = f;
   const makespan = lastFinish + 1;
 
-  const lastCal = calendarOf(Math.max(0, makespan - 1), settings.startYear, settings.startTerm);
-  const graduation = { year: lastCal.year, month: lastCal.term === 1 ? 7 : 12 };
+  // Fin de cursada: el calendario de la última posición usada. Los veranos
+  // terminan en febrero; los cuatris regulares en julio / diciembre.
+  const lastIdx = Math.max(0, makespan - 1);
+  const lastCal =
+    calendars.list[lastIdx] ??
+    // Puede excederse por una anual que arranca en el último cuatri.
+    (() => {
+      const extra = lastIdx - (calendars.list.length - 1);
+      const c = calendarOf(
+        Math.max(0, calendars.regularCount - 1 + extra),
+        settings.startYear,
+        settings.startTerm,
+      );
+      return { ...c, summer: false };
+    })();
+  const graduation = {
+    year: lastCal.year,
+    month: lastCal.summer ? 2 : lastCal.term === 1 ? 7 : 12,
+  };
   const placedCount = manualTerms.reduce((a, t) => a + t.subjects.length, 0);
+  // Los veranos son intensivos: no cuentan como medio año de carrera.
+  const years = calendars.regularCount / 2;
 
-  return { terms, makespan, years: makespan / 2, graduation, placedCount, valid };
+  return { terms, makespan, years, graduation, placedCount, valid };
 }

@@ -27,6 +27,11 @@ const Y_GAP = 74;
 /** Colores por año (1° a 5°). */
 const YEAR_COLORS = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#fb7185'];
 
+/**
+ * Layout por niveles (izq→der) ordenando cada columna con el método del
+ * baricentro (Sugiyama): cada materia se acerca al promedio de sus correlativas,
+ * ida y vuelta varias veces. Reduce muchísimo el cruce de flechas.
+ */
 const positions = (() => {
   const byLevel = new Map<number, string[]>();
   for (const s of subjects) {
@@ -35,13 +40,48 @@ const positions = (() => {
     arr.push(s.code);
     byLevel.set(lvl, arr);
   }
+  const levels = [...byLevel.keys()].sort((a, b) => a - b);
+
+  // Orden inicial estable: por año y después por nombre.
+  const order = new Map<string, number>();
+  for (const lvl of levels) {
+    const arr = byLevel.get(lvl)!;
+    arr.sort((a, b) => {
+      const sa = graph.byCode.get(a);
+      const sb = graph.byCode.get(b);
+      return (sa?.year ?? 0) - (sb?.year ?? 0) || (sa?.name ?? a).localeCompare(sb?.name ?? b);
+    });
+    arr.forEach((c, i) => order.set(c, i));
+  }
+
+  const sweep = (lvlList: number[], neighborsOf: (c: string) => string[]) => {
+    for (const lvl of lvlList) {
+      const arr = byLevel.get(lvl)!;
+      const bary = new Map<string, number>();
+      for (const c of arr) {
+        const ns = neighborsOf(c).filter((n) => order.has(n));
+        bary.set(
+          c,
+          ns.length ? ns.reduce((acc, n) => acc + order.get(n)!, 0) / ns.length : order.get(c)!,
+        );
+      }
+      arr.sort((a, b) => bary.get(a)! - bary.get(b)! || order.get(a)! - order.get(b)!);
+      arr.forEach((c, i) => order.set(c, i));
+    }
+  };
+
+  for (let it = 0; it < 8; it++) {
+    // Hacia adelante: me acerco al promedio de mis correlativas (izquierda).
+    sweep(levels.slice(1), (c) => graph.prereqs.get(c) ?? []);
+    // Hacia atrás: me acerco al promedio de lo que desbloqueo (derecha).
+    sweep([...levels].reverse().slice(1), (c) => graph.dependents.get(c) ?? []);
+  }
+
   const pos = new Map<string, { x: number; y: number }>();
-  for (const [lvl, codes] of byLevel) {
-    codes
-      .sort((a, b) => a.localeCompare(b))
-      .forEach((code, i) => {
-        pos.set(code, { x: (lvl - 1) * X_GAP, y: i * Y_GAP });
-      });
+  for (const lvl of levels) {
+    byLevel.get(lvl)!.forEach((code, i) => {
+      pos.set(code, { x: (lvl - 1) * X_GAP, y: i * Y_GAP });
+    });
   }
   return pos;
 })();
@@ -86,18 +126,23 @@ export function Grafo() {
           background: color,
           color: '#0b1220',
           border: isSel
-            ? '3px solid #fff'
+            ? '2px solid #0b1220'
             : upstream.has(s.code)
               ? '2px solid #f59e0b'
               : downstream.has(s.code)
                 ? '2px solid #22d3ee'
                 : '1px solid rgba(0,0,0,0.2)',
           borderRadius: 10,
-          fontSize: 11,
-          fontWeight: 600,
+          // La seleccionada tiene que cantar: más grande, en negrita y con halo.
+          fontSize: isSel ? 13 : 11,
+          fontWeight: isSel ? 800 : 600,
           width: 190,
-          padding: 6,
-          opacity: dimmed ? 0.18 : 1,
+          padding: isSel ? 10 : 6,
+          opacity: dimmed ? 0.12 : 1,
+          boxShadow: isSel
+            ? '0 0 0 4px #fff, 0 0 0 8px #3479f6, 0 10px 30px rgba(0,0,0,0.45)'
+            : undefined,
+          zIndex: isSel ? 10 : undefined,
         },
       } satisfies Node;
     });
@@ -107,21 +152,26 @@ export function Grafo() {
     const list: Edge[] = [];
     for (const s of subjects) {
       for (const p of graph.prereqs.get(s.code) ?? []) {
-        const onPath =
-          related && related.has(s.code) && related.has(p) &&
-          ((upstream.has(p) && (upstream.has(s.code) || s.code === selected)) ||
-            (downstream.has(s.code) && (downstream.has(p) || p === selected)));
+        // Aguas arriba (lo que la seleccionada necesita) en ámbar; aguas abajo
+        // (lo que desbloquea) en cian — igual que la leyenda y los bordes.
+        const isUp = !!related && (upstream.has(p) && (upstream.has(s.code) || s.code === selected));
+        const isDown =
+          !!related && (downstream.has(s.code) && (downstream.has(p) || p === selected));
+        const onPath = isUp || isDown;
+        const color = isUp ? '#f59e0b' : isDown ? '#22d3ee' : '#64748b';
         list.push({
           id: `${p}->${s.code}`,
           source: p,
           target: s.code,
           type: 'smoothstep',
-          markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: onPath ? '#3479f6' : '#64748b' },
+          animated: onPath,
+          markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color },
           style: {
-            stroke: onPath ? '#3479f6' : '#64748b',
+            stroke: color,
             strokeWidth: onPath ? 2.5 : 1.2,
-            opacity: related ? (onPath ? 1 : 0.06) : 0.3,
+            opacity: related ? (onPath ? 1 : 0.05) : 0.28,
           },
+          zIndex: onPath ? 5 : 0,
         });
       }
     }

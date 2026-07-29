@@ -31,6 +31,9 @@ export type Commission = {
   /** Nombre real de la materia ofrecida en esta comisión (para las electivas,
    * donde cada día corresponde a una electiva distinta). */
   label?: string;
+  /** Código real de esa materia (las electivas del plan son cupos genéricos:
+   * el código que se inscribe es el de la electiva concreta). */
+  subjectCode?: string;
 };
 
 export type Offering = {

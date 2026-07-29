@@ -12,6 +12,7 @@ export type ExportableState = Pick<
   | 'manualForcedDay'
   | 'manualForcedTurno'
   | 'electivePref'
+  | 'pinnedTerm'
   | 'offer'
 >;
 
@@ -28,6 +29,7 @@ export function pickExportable(s: StoreState): ExportableState {
     manualForcedDay: s.manualForcedDay,
     manualForcedTurno: s.manualForcedTurno,
     electivePref: s.electivePref,
+    pinnedTerm: s.pinnedTerm,
     offer: isBaseOffer ? null : s.offer,
   };
 }
@@ -57,6 +59,7 @@ export function parseImportedState(text: string): Partial<ExportableState> | nul
     if (obj.manualForcedDay) out.manualForcedDay = obj.manualForcedDay;
     if (obj.manualForcedTurno) out.manualForcedTurno = obj.manualForcedTurno;
     if (obj.electivePref) out.electivePref = obj.electivePref;
+    if (obj.pinnedTerm !== undefined) out.pinnedTerm = obj.pinnedTerm;
     if (obj.offer !== undefined) out.offer = obj.offer;
     return out;
   } catch {
