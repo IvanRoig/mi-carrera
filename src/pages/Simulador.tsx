@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useDerived, useSchedule } from '@/lib/useDerived';
+import { useDerived, useSchedule, enCursoOptions } from '@/lib/useDerived';
 import { useStore } from '@/store/useStore';
 import { graph } from '@/domain/planGraph';
 import { ancestorsOf } from '@/domain/graph';
@@ -276,15 +276,15 @@ function AutoView({
     if (!sicario) return autoSched;
     return schedule({
       graph,
-      pending: d.pending,
       done: d.done,
       settings,
       offer,
       difficult: new Set(difficultArr),
       sicario: true,
       electivePref,
+      ...enCursoOptions(d),
     });
-  }, [sicario, autoSched, d.pending, d.done, settings, offer, difficultArr, electivePref]);
+  }, [sicario, autoSched, d, settings, offer, difficultArr, electivePref]);
 
   const chain = new Set(s.criticalChain);
 
@@ -513,6 +513,7 @@ function AnalisisOptimo({ makespan }: { makespan: number }) {
       offer: offer!,
       actual: makespan,
       electivePref,
+      enCurso: [...d.enCurso],
     } satisfies WorkerReq);
   }
 

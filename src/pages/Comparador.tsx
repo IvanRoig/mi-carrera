@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useDerived } from '@/lib/useDerived';
+import { useDerived, enCursoOptions } from '@/lib/useDerived';
 import { useStore } from '@/store/useStore';
 import { graph } from '@/domain/planGraph';
 import { schedule } from '@/domain/scheduler';
@@ -43,13 +43,13 @@ export function Comparador() {
     ): Row {
       const s = schedule({
         graph,
-        pending: d.pending,
         done: d.done,
         settings: { ...settings, ...over },
         offer,
         difficult,
         sicario: opts.sicario,
         electivePref,
+        ...enCursoOptions(d),
       });
       return {
         id,
@@ -71,7 +71,7 @@ export function Comparador() {
         compute(sc.id, sc.name, { maxPerTerm: sc.maxPerTerm }, { sicario: sc.sicario }),
       ),
     ];
-  }, [d.loaded, d.pending, d.done, settings, scenarios, offer, difficultArr, electivePref]);
+  }, [d, settings, scenarios, offer, difficultArr, electivePref]);
 
   const best = rows.reduce((a, b) => (b.makespan < a.makespan ? b : a), rows[0]);
 

@@ -25,6 +25,8 @@ export type WorkerReq = {
   electivePref?: Record<string, number>;
   /** Solo para 'riesgo': materias del próximo cuatrimestre. */
   materias?: string[];
+  /** Materias que estás cursando (van fijas en el cuatrimestre actual). */
+  enCurso?: string[];
 };
 
 export type WorkerMsg =
@@ -49,8 +51,9 @@ function serializar(plan: PlanExacto | null): [string, number, string | null][] 
 const post = (m: WorkerMsg) => (self as unknown as Worker).postMessage(m);
 
 self.onmessage = (e: MessageEvent<WorkerReq>) => {
-  const { modo = 'optimo', pending, settings, offer, actual, electivePref, materias } = e.data;
-  const inp = { graph, pending: new Set(pending), settings, offer, actual, electivePref };
+  const { modo = 'optimo', pending, settings, offer, actual, electivePref, materias, enCurso } =
+    e.data;
+  const inp = { graph, pending: new Set(pending), settings, offer, actual, electivePref, enCurso };
 
   if (modo === 'riesgo') {
     analizarRiesgo(inp, materias ?? [], (riesgo, hechas, total) =>
