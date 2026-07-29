@@ -127,9 +127,11 @@ export function Intocables({ materias: forzadas }: { materias?: string[] } = {})
         <button
           onClick={analizar}
           title={
-            'Calcula, materia por materia, qué pasa si la desaprobás:\n\n' +
+            'Calcula, materia por materia, qué pasa si desaprobás ESA (aprobando el resto):\n\n' +
             '· cuánto se atrasa tu egreso\n' +
             '· hasta qué cuatrimestre podés dejarla sin perder tiempo\n\n' +
+            'Ojo: es de a una. Que dos no te muevan la fecha por separado no\n' +
+            'significa que puedas desaprobar las dos sin costo.\n\n' +
             'Corre en segundo plano y los resultados van apareciendo de a uno.'
           }
           className="text-slate-500 underline decoration-dotted underline-offset-4 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-300"
@@ -141,7 +143,7 @@ export function Intocables({ materias: forzadas }: { materias?: string[] } = {})
       {estado !== 'inicial' && (
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">Si desaprobás…</span>
+            <span className="font-medium">Si desaprobás <em>una</em> de estas…</span>
             {estado === 'corriendo' && (
               <span className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                 <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
@@ -199,11 +201,19 @@ export function Intocables({ materias: forzadas }: { materias?: string[] } = {})
           </ul>
 
           {estado === 'listo' && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {riesgosas > 0
-                ? 'Las marcadas encabezan cadenas de correlativas sin margen: si se te caen, arrastran todo lo que viene atrás.'
-                : 'Ninguna te cambia la fecha de egreso si la recursás al cuatrimestre siguiente.'}
-            </p>
+            <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+              <p>
+                {riesgosas > 0
+                  ? 'Las marcadas encabezan cadenas de correlativas sin margen: si se te caen, arrastran todo lo que viene atrás.'
+                  : 'Ninguna te cambia la fecha de egreso si la recursás al cuatrimestre siguiente.'}
+              </p>
+              <p className="rounded-lg bg-amber-500/10 px-2 py-1.5 text-amber-700 dark:text-amber-300">
+                ⚠️ Cada línea supone que desaprobás <strong>solo esa materia</strong> y
+                aprobás todas las demás. No quiere decir que puedas desaprobar varias
+                sin costo: dos que “no te mueven la fecha” por separado sí te la pueden
+                mover juntas, porque van a competir por el mismo lugar en la recursada.
+              </p>
+            </div>
           )}
         </div>
       )}

@@ -350,7 +350,15 @@ function assignAllCommissions(
   const diasElectivas = new Set<number>();
   result.terms.forEach((t) => {
     const offMap = t.index === 0 ? maps.offMap0! : maps.offMapPref!;
-    const offered = t.subjects.filter((c) => (offMap.get(c)?.commissions.length ?? 0) > 0);
+    // Orden CANÓNICO, no el que quedó en el cuatri. La asignación de comisiones
+    // es un first-fit con backtracking: si el orden de entrada cambia, cambian
+    // los horarios elegidos. Y ese orden depende de cómo armaste el plan (qué
+    // arrastraste, en qué cuatri autocompletaste), así que el mismo plan podía
+    // mostrarse con horarios distintos. Ordenando por código, el mismo conjunto
+    // de materias da siempre los mismos horarios.
+    const offered = t.subjects
+      .filter((c) => (offMap.get(c)?.commissions.length ?? 0) > 0)
+      .sort((a, b) => a.localeCompare(b));
 
     // Para las electivas descartamos los días ya usados (si queda alguna opción).
     const local = new Map(offMap);
@@ -461,7 +469,8 @@ function asignarLoQueEntre(
 ): Map<string, Commission> {
   const orden = [...offered].sort(
     (a, b) =>
-      (offMap.get(a)?.commissions.length ?? 0) - (offMap.get(b)?.commissions.length ?? 0),
+      (offMap.get(a)?.commissions.length ?? 0) - (offMap.get(b)?.commissions.length ?? 0) ||
+      a.localeCompare(b), // desempate estable: mismos horarios siempre
   );
   let mejor = new Map<string, Commission>();
   const puestas: string[] = [];
