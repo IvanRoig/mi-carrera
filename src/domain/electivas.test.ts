@@ -22,6 +22,29 @@ function planFor(done: string[]) {
   });
 }
 
+describe('correlativas de las electivas', () => {
+  // No figuran en el plan oficial, pero la facultad confirmó que las 5 electivas
+  // piden lo mismo: Programación Avanzada, Arquitectura de Sistemas Software y
+  // Gestión de Proyectos.
+  const PRE = ['03652', '03653', '03661'];
+
+  it('los 3 cupos de electiva piden esas tres materias', () => {
+    for (const e of ELECTIVAS) {
+      expect(graph.prereqs.get(e), `electiva ${e}`).toEqual(PRE);
+    }
+  });
+
+  it('el cronograma nunca las ubica antes de tenerlas aprobadas', () => {
+    const sched = planFor([]);
+    for (const e of ELECTIVAS) {
+      const start = sched.startByCode.get(e)!;
+      for (const p of PRE) {
+        expect(sched.finishByCode.get(p)!, `${p} antes de ${e}`).toBeLessThan(start);
+      }
+    }
+  });
+});
+
 describe('electivas en el cronograma automático', () => {
   it('cada electiva ubicada trae el nombre real (label) de ese día', () => {
     const sched = planFor(['03621', '03622', '03623', '03624', '03625']);
