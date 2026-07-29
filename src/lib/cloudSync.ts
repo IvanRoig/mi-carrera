@@ -14,6 +14,8 @@ import { pickExportable, type ExportableState } from './persistence';
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let unsub: (() => void) | null = null;
 let currentUserId: string | null = null;
+/** Usuario cuyo estado ya trajimos de la nube en esta sesión. */
+let hidratadoPara: string | null = null;
 
 /** Trae el estado guardado en la nube para un usuario (o null). */
 export async function pullCloudState(
@@ -46,21 +48,35 @@ export async function pushCloudState(
   if (error) console.error('[cloudSync] push error', error.message);
 }
 
-/** Se llama al iniciar sesión: decide si baja o sube, y arranca el auto-guardado. */
+/**
+ * Se llama al iniciar sesión: baja tu estado de la nube (o sube el local si es
+ * una cuenta nueva) y arranca el auto-guardado.
+ *
+ * IMPORTANTE: solo baja UNA vez por sesión. Supabase reemite `SIGNED_IN` cada
+ * vez que refresca el token (por ejemplo, al volver a la pestaña). Si en cada
+ * uno de esos avisos volviéramos a bajar el estado, pisaríamos lo que venís
+ * tocando con una copia vieja de la nube — y el plan te cambiaba solo.
+ */
 export async function onLogin(userId: string): Promise<void> {
   currentUserId = userId;
+  if (hidratadoPara === userId) {
+    startAutoSave(); // ya estaba cargado: solo aseguramos el guardado automático
+    return;
+  }
   const cloud = await pullCloudState(userId);
   if (cloud && cloud.user) {
     useStore.getState().importFullState(cloud);
   } else {
     await pushCloudState(userId, pickExportable(useStore.getState()));
   }
+  hidratadoPara = userId;
   startAutoSave();
 }
 
 /** Se llama al cerrar sesión. */
 export function onLogout(): void {
   currentUserId = null;
+  hidratadoPara = null;
   stopAutoSave();
 }
 
