@@ -17,6 +17,7 @@ import { Oferta } from '@/pages/Oferta';
 import { AccountButton, RecoveryScreen } from '@/components/Auth';
 import { AuthGate } from '@/components/AuthGate';
 import { useAuth } from '@/store/useAuth';
+import { buscarVersionNueva } from '@/lib/pwa';
 
 type TabId = 'tablero' | 'materias' | 'grafo' | 'simulador' | 'comparador' | 'oferta';
 
@@ -139,7 +140,38 @@ function AppShell({
         {tab === 'comparador' && <Comparador />}
         {tab === 'oferta' && <Oferta />}
       </main>
+
+      <PieVersion />
     </div>
+  );
+}
+
+/**
+ * Qué versión estás usando. Parece un detalle, pero no lo es: la app avisa en vez
+ * de actualizarse sola, así que podés estar viendo una versión vieja y creer que
+ * un bug ya arreglado sigue ahí. Con el sello se sabe al toque, y el botón fuerza
+ * la búsqueda de una versión nueva sin esperar a que el navegador la note.
+ */
+function PieVersion() {
+  const [buscando, setBuscando] = useState(false);
+  const [sinNovedad, setSinNovedad] = useState(false);
+
+  async function buscar() {
+    setBuscando(true);
+    setSinNovedad(false);
+    const hubo = await buscarVersionNueva();
+    setBuscando(false);
+    if (!hubo) setSinNovedad(true);
+  }
+
+  return (
+    <footer className="mx-auto max-w-6xl px-4 pb-8 text-center text-xs text-slate-400 dark:text-slate-600">
+      <span title="Commit y fecha del build que estás usando">versión {__VERSION__}</span>
+      {' · '}
+      <button onClick={buscar} disabled={buscando} className="underline hover:text-brand-500">
+        {buscando ? 'buscando…' : sinNovedad ? 'ya estás al día' : 'buscar actualización'}
+      </button>
+    </footer>
   );
 }
 

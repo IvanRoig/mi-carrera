@@ -32,6 +32,23 @@ export function escucharVersionNueva(f: (v: boolean) => void): () => void {
   };
 }
 
+/**
+ * Fuerza la búsqueda de una versión nueva ahora mismo, sin esperar a que el
+ * navegador la note por su cuenta. Devuelve true si encontró una.
+ */
+export async function buscarVersionNueva(): Promise<boolean> {
+  if (!('serviceWorker' in navigator)) return false;
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((r) => r.update()));
+  } catch {
+    // Sin conexión o sin worker: no pasa nada.
+  }
+  // `update()` dispara onNeedRefresh si hay algo nuevo; le damos un momento.
+  await new Promise((r) => setTimeout(r, 1200));
+  return hay;
+}
+
 export async function aplicarVersionNueva(): Promise<void> {
   try {
     // Le dice al worker que espera que tome el control; al tomarlo, recarga.
