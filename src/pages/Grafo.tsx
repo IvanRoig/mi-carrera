@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -92,6 +92,18 @@ export function Grafo() {
   const electiveNames = useStore((s) => s.electiveNames);
   const [colorBy, setColorBy] = useState<'status' | 'track' | 'year'>('status');
   const [selected, setSelected] = useState<string | null>(null);
+  /** Pantalla completa: el mapa es grande y se lee mucho mejor. */
+  const [expanded, setExpanded] = useState(false);
+
+  // Esc para salir de pantalla completa.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpanded(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [expanded]);
 
   const { related, upstream, downstream } = useMemo(() => {
     if (!selected) return { related: null as Set<string> | null, upstream: new Set<string>(), downstream: new Set<string>() };
@@ -181,7 +193,13 @@ export function Grafo() {
   const selStatus = selected ? d.statuses.get(selected) : null;
 
   return (
-    <div className="space-y-3">
+    <div
+      className={
+        expanded
+          ? 'fixed inset-0 z-50 flex flex-col gap-3 overflow-auto bg-slate-50 p-4 dark:bg-slate-950'
+          : 'space-y-3'
+      }
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-sm text-slate-500 dark:text-slate-400">Colorear por:</span>
@@ -196,6 +214,13 @@ export function Grafo() {
               Año
             </Seg>
           </div>
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            title={expanded ? 'Salir de pantalla completa (Esc)' : 'Ver el mapa en grande'}
+          >
+            {expanded ? '✕ Salir' : '⛶ Ver en grande'}
+          </button>
         </div>
         <Legend colorBy={colorBy} />
       </div>
@@ -217,8 +242,14 @@ export function Grafo() {
         </div>
       )}
 
-      <div className="h-[68vh] overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+      <div
+        className={`overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 ${
+          expanded ? 'min-h-0 flex-1' : 'h-[68vh]'
+        }`}
+      >
         <ReactFlow
+          // Al cambiar de tamaño remontamos para que vuelva a encuadrar solo.
+          key={expanded ? 'full' : 'inline'}
           nodes={nodes}
           edges={edges}
           onNodeClick={(_, n) => setSelected((cur) => (cur === n.id ? null : n.id))}
