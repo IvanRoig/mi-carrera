@@ -10,7 +10,7 @@ import { computePriorityMetrics } from '@/domain/priority';
 import { schedule, type ScheduleResult } from '@/domain/scheduler';
 import type { SubjectStatus, UserState } from '@/domain/types';
 import { TALLER_CODE } from '@/domain/types';
-import { scarcityFromOffer } from '@/domain/conflicts';
+import { scarcityFromOffer, type OfferData } from '@/domain/conflicts';
 import {
   intermediateProgress,
   intermediateRequired,
@@ -132,11 +132,15 @@ export function useDerived(): Derived {
 }
 
 /**
- * Cronograma automático. Separado de useDerived (es lo caro) para que solo lo
- * recalculen las pantallas que lo muestran (Tablero, Simulador), y no cada vez
- * que tocás una materia en otra solapa. Memoizado por (approved/regularized/
- * inProgress/settings/difficult) y la oferta — no por el plan manual.
+ * Escasez por materia según la oferta (menos comisiones = más escasa). Pesa en la
+ * prioridad del simulador, así que TODOS los que llaman a schedule() tienen que
+ * pasarla: si no, el plan automático y el "completar desde acá" resuelven con
+ * prioridades distintas y te dan planes distintos sin motivo aparente.
  */
+export function scarcityDe(offer: OfferData | null | undefined) {
+  return offer ? scarcityFromOffer(offer) : undefined;
+}
+
 /**
  * Lo que estás cursando AHORA ocupa el primer cuatrimestre del plan: no está
  * aprobado todavía, y lo que depende de ello recién puede ir después. Si no,
@@ -152,6 +156,11 @@ export function enCursoOptions(d: Pick<Derived, 'pending' | 'enCurso'>) {
   };
 }
 
+/**
+ * Cronograma automático. Separado de useDerived (es lo caro) para que solo lo
+ * recalculen las pantallas que lo muestran (Tablero, Simulador), y no cada vez
+ * que tocás una materia en otra solapa.
+ */
 export function useSchedule(): ScheduleResult {
   const user = useStore((s) => s.user);
   const offer = useStore((s) => s.offer);
@@ -176,7 +185,7 @@ function computeSchedule(
   const todas = new Set([...universe].filter((c) => !done.has(c)));
   const enCurso = new Set(user.inProgress.filter((c) => todas.has(c)));
   const { pending, preScheduled, firstFreeTerm } = enCursoOptions({ pending: todas, enCurso });
-  const scarcity = offer ? scarcityFromOffer(offer) : undefined;
+  const scarcity = scarcityDe(offer);
   return schedule({
     graph,
     pending,

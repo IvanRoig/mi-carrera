@@ -13,10 +13,12 @@ import { subjects } from '../data/plan';
 import ofertaBase from '../data/oferta-base.json';
 import type { OfferData } from './conflicts';
 import { schedule } from './scheduler';
+import { scarcityFromOffer } from './conflicts';
 import { DEFAULT_SETTINGS, TALLER_CODE } from './types';
 
 const offer = ofertaBase as OfferData;
 const universe = [...subjects.map((s) => s.code).filter((c) => c !== TALLER_CODE)];
+const scarcity = scarcityFromOffer(offer);
 
 /** Firma del plan: qué comisión le tocó a cada materia. */
 function firma(res: ReturnType<typeof schedule>) {
@@ -50,11 +52,12 @@ function completarDesde(
     difficult: new Set(),
     preScheduled,
     firstFreeTerm: prefijo.length,
+    scarcity,
   });
 }
 
 describe('estabilidad de los horarios', () => {
-  // Dos primeros cuatris armados a mano, como si los hubieras dejado fijos.
+  // El plan automático, igual que lo calcula la app.
   const plano = schedule({
     graph,
     pending: new Set(universe),
@@ -62,8 +65,46 @@ describe('estabilidad de los horarios', () => {
     settings: DEFAULT_SETTINGS,
     offer,
     difficult: new Set(),
+    scarcity,
   });
   const prefijo = plano.terms.slice(0, 2).map((t) => [...t.subjects]);
+
+  // Con "solo noches" el reparto es apretado y ahí sí se nota si el
+  // autocompletado usa las mismas prioridades que el plan automático.
+  const noches = {
+    ...DEFAULT_SETTINGS,
+    restrictAvailability: true,
+    availableSlots: ['0-n', '1-n', '2-n', '3-n', '4-n', '5-t', '5-n'],
+  };
+  const porCuatri = (terms: { subjects: string[] }[]) =>
+    terms.map((t) => [...t.subjects].sort().join('+')).join(' || ');
+
+  it('completar desde el primer cuatri devuelve el mismo plan automático', () => {
+    // Fijar el primer cuatri y autocompletar el resto plantea el MISMO problema
+    // que el plan automático, así que tiene que dar el mismo resultado. Antes no:
+    // el automático pesaba la escasez de la oferta (cuántas comisiones tiene cada
+    // materia) y el autocompletado no, así que el primer toque te devolvía otro
+    // plan sin que hubieras cambiado nada.
+    const auto = schedule({
+      graph,
+      pending: new Set(universe),
+      done: new Set<string>(),
+      settings: noches,
+      offer,
+      difficult: new Set(),
+      scarcity,
+    });
+    const soloPrimero = auto.terms.slice(0, 1).map((t) => [...t.subjects]);
+    const completado = completarDesde(soloPrimero, (xs) => xs, noches);
+    expect(porCuatri(completado.terms)).toBe(porCuatri(auto.terms));
+  });
+
+  it('repetirlo no cambia nada', () => {
+    const soloPrimero = plano.terms.slice(0, 1).map((t) => [...t.subjects]);
+    const a = firma(completarDesde(soloPrimero, (xs) => xs));
+    const b = firma(completarDesde(soloPrimero, (xs) => xs));
+    expect(b).toBe(a);
+  });
 
   it('no dependen del orden en que quedaron las materias dentro del cuatri', () => {
     const base = firma(completarDesde(prefijo, (xs) => xs));
