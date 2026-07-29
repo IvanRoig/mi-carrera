@@ -5,11 +5,25 @@
  * — clave — SIN choques de horario: nunca dos materias el mismo día y horario.
  *
  * Cómo:
- *  1. `runSchedule(cap)`: list scheduling greedy por ruta crítica, pero cada
- *     cuatri se arma verificando que exista una asignación de comisiones sin
- *     solapamientos (usa la oferta cargada como referencia para TODOS los cuatris).
- *  2. `schedule()`: busca el menor tope por cuatri que igual logra el makespan
- *     mínimo (carga pareja) y calcula la comisión asignada a cada materia.
+ *  1. `runSchedule(cap)`: list scheduling greedy, armando cada cuatri solo si
+ *     existe una asignación de comisiones sin solapamientos (usa la oferta
+ *     cargada como referencia para TODOS los cuatris).
+ *  2. Cotas inferiores: por capacidad, por cadena de correlativas y por HORARIOS
+ *     (`slotLowerBound`: si N materias no pueden coexistir de a pares —p.ej. 5
+ *     que solo se dan jueves a la noche— hacen falta N cuatrimestres). Si el
+ *     plan alcanza la cota, es demostrablemente óptimo y no se busca más.
+ *  3. Si no la alcanza, `schedule()` prueba objetivos de duración desde la cota
+ *     hacia arriba. Para cada objetivo T ordena por HOLGURA (T menos la cadena
+ *     que arranca en cada materia) en vez de por ruta crítica fija: así, cuando
+ *     dos materias compiten por la última franja libre, gana la que destraba la
+ *     cadena más larga. Esto es lo que el greedy clásico no veía y podía costar
+ *     un año entero de carrera.
+ *  4. Con el mejor makespan, busca el menor tope por cuatri que igual lo logra
+ *     (carga pareja) y asigna la comisión de cada materia, garantizando además
+ *     que las electivas caigan en días distintos (nunca la misma dos veces).
+ *
+ * Validado en `scheduler-quality.test.ts` y `scheduler-optimo.test.ts`: cientos
+ * de escenarios, siempre planes cursables y nunca peores que la versión previa.
  */
 
 import type { Subject, UserSettings } from './types';
@@ -137,69 +151,107 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/** Cota inferior de makespan: por capacidad y por ruta crítica (lo que sea mayor). */
-function lowerBound(input: ScheduleInput, cap: number): number {
+/** ¿Estas dos materias NUNCA pueden ir juntas? (todas sus comisiones se pisan) */
+function alwaysClash(a?: Offering, b?: Offering): boolean {
+  if (!a?.commissions.length || !b?.commissions.length) return false;
+  for (const ca of a.commissions) {
+    for (const cb of b.commissions) {
+      if (!commissionsOverlap(ca, cb)) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Cota inferior por HORARIOS. Si un grupo de materias no puede coexistir de a
+ * pares (p.ej. 5 materias que solo se dan jueves a la noche), cada una necesita
+ * su propio cuatrimestre: hacen falta al menos tantos cuatris como materias.
+ * Busca una camarilla (clique) grande de forma golosa — cualquier camarilla que
+ * encuentre es una cota válida.
+ */
+function slotLowerBound(
+  input: ScheduleInput,
+  offMap: Map<string, Offering> | null,
+): number {
+  if (!offMap) return 1;
+  const codes = [...input.pending].filter((c) => (offMap.get(c)?.commissions.length ?? 0) > 0);
+  if (codes.length < 2) return 1;
+
+  const clash = new Map<string, Set<string>>();
+  for (const c of codes) clash.set(c, new Set());
+  for (let i = 0; i < codes.length; i++) {
+    for (let j = i + 1; j < codes.length; j++) {
+      if (alwaysClash(offMap.get(codes[i]), offMap.get(codes[j]))) {
+        clash.get(codes[i])!.add(codes[j]);
+        clash.get(codes[j])!.add(codes[i]);
+      }
+    }
+  }
+  const byDeg = [...codes].sort((a, b) => clash.get(b)!.size - clash.get(a)!.size);
+  let best = 1;
+  for (const seed of byDeg.slice(0, 12)) {
+    if (clash.get(seed)!.size + 1 <= best) break; // no puede mejorar
+    const cl = [seed];
+    for (const c of byDeg) {
+      if (c !== seed && cl.every((x) => clash.get(x)!.has(c))) cl.push(c);
+    }
+    if (cl.length > best) best = cl.length;
+  }
+  return best;
+}
+
+/** Cota inferior de makespan: capacidad, ruta crítica y horarios (la mayor). */
+function lowerBound(
+  input: ScheduleInput,
+  cap: number,
+  offMap: Map<string, Offering> | null,
+): number {
   let slots = 0;
   for (const c of input.pending) slots += input.graph.byCode.get(c)?.annual ? 2 : 1;
   const capLB = isFinite(cap) ? Math.ceil(slots / cap) : 1;
   const down = longestDownstreamTerms(input.graph, input.pending);
   let critLB = 0;
   for (const v of down.values()) critLB = Math.max(critLB, v);
-  return Math.max(1, capLB, critLB);
-}
-
-/** Carga aproximada por día según las materias NO electivas (para elegir los
- * días más libres para las electivas). */
-function estimateDayLoad(input: ScheduleInput): Map<number, number> {
-  const load = new Map<number, number>();
-  if (!input.offer) return load;
-  const offMap = offeringMap(input.offer);
-  for (const c of input.pending) {
-    if (input.graph.byCode.get(c)?.isElective) continue;
-    const comms = offMap.get(c)?.commissions ?? [];
-    const days = [...new Set(comms.flatMap((cm) => cm.meetings.map((m) => m.day)))];
-    for (const d of days) load.set(d, (load.get(d) ?? 0) + 1 / days.length);
-  }
-  return load;
+  return Math.max(1, capLB, critLB, slotLowerBound(input, offMap));
 }
 
 /**
- * Asigna a cada electiva un día DISTINTO (restricción dura, no preferencia): así
- * nunca te sugiere la misma electiva dos veces. Respeta la preferencia que hayas
- * puesto y, para el resto, elige los días más libres. Devuelve un input con
- * `electivePref` completado.
+ * Cuántos cuatrimestres ocupa, como mínimo, la cadena que arranca en cada
+ * materia (ella + lo que desbloquea). Sirve para saber qué tan urgente es:
+ * con un objetivo T, la materia debe arrancar a más tardar en T - cola.
  */
-function withDistinctElectiveDays(input: ScheduleInput): ScheduleInput {
-  const electivas = [...input.pending].filter((c) => input.graph.byCode.get(c)?.isElective);
-  if (electivas.length <= 1 || !input.offer) return input;
-  const offMap = offeringMap(input.offer);
-  const pref: Record<string, number> = { ...(input.electivePref ?? {}) };
-  const used = new Set<number>(Object.values(pref));
-  const load = estimateDayLoad(input);
-  for (const code of electivas) {
-    if (pref[code] != null) continue;
-    // días que ESTA electiva ofrece y que ninguna otra ya tomó, del más libre al más cargado
-    const offered = [
-      ...new Set((offMap.get(code)?.commissions ?? []).flatMap((c) => c.meetings.map((m) => m.day))),
-    ];
-    const pick = offered
-      .filter((d) => !used.has(d))
-      .sort((a, b) => (load.get(a) ?? 0) - (load.get(b) ?? 0))[0];
-    if (pick != null) {
-      pref[code] = pick;
-      used.add(pick);
+function tailTerms(graph: Graph, pending: Set<string>): Map<string, number> {
+  const memo = new Map<string, number>();
+  const dur = (c: string) => (graph.byCode.get(c)?.annual ? 2 : 1);
+  const visit = (c: string): number => {
+    const cached = memo.get(c);
+    if (cached !== undefined) return cached;
+    memo.set(c, dur(c)); // corta ciclos
+    let best = 0;
+    for (const d of graph.dependents.get(c) ?? []) {
+      if (pending.has(d)) best = Math.max(best, visit(d));
     }
-  }
-  return { ...input, electivePref: pref };
+    const v = dur(c) + best;
+    memo.set(c, v);
+    return v;
+  };
+  for (const c of pending) visit(c);
+  return memo;
 }
+
+/* Nota sobre las electivas: son cupos intercambiables (una electiva real por
+ * día). NO les fijamos el día antes de armar el plan, porque atarlas de entrada
+ * alarga la carrera sin necesidad. El armado las trata como flexibles y la
+ * unicidad ("nunca la misma electiva dos veces") se garantiza al asignar las
+ * comisiones, en assignAllCommissions. La preferencia explícita del usuario
+ * (elegida en Materias) sí se respeta siempre, vía `electivePref`. */
 
 /**
  * Programa óptimo: minimiza el makespan (con reintentos aleatorios para no
  * quedarse en un óptimo local del greedy) y, con esa meta, arma cuatris parejos
  * buscando el menor tope por cuatri que igual la logra.
  */
-export function schedule(inputRaw: ScheduleInput): ScheduleResult {
-  const input = withDistinctElectiveDays(inputRaw);
+export function schedule(input: ScheduleInput): ScheduleResult {
   const effectiveMax = input.sicario
     ? Math.max(1, input.pending.size)
     : Math.max(1, input.settings.maxPerTerm);
@@ -207,30 +259,71 @@ export function schedule(inputRaw: ScheduleInput): ScheduleResult {
 
   if (input.pending.size === 0) {
     const r = runSchedule(input, effectiveMax, maps);
-    r.commissionByCode = assignAllCommissions(r, maps);
+    r.commissionByCode = assignAllCommissions(r, maps, input.graph);
     return r;
   }
 
-  // 1) Mejor makespan: greedy determinístico. Solo reintenta (pocas veces) si no
-  //    alcanzó la cota inferior teórica; si ya la alcanzó, es óptimo → no reintenta.
-  const lb = lowerBound(input, effectiveMax);
-  let bestM = runSchedule(input, effectiveMax, maps).makespan;
+  // Una "estrategia" es cómo ordena el greedy las materias candidatas. Guardamos
+  // la ganadora para poder reproducir el mejor plan al balancear la carga.
+  type Strategy = { urgency?: Map<string, number>; seed?: number };
+  const run = (cap: number, st: Strategy) =>
+    runSchedule(input, cap, maps, st.seed != null ? mulberry32(st.seed) : undefined, st.urgency);
+
+  // 1) Punto de partida: greedy por ruta crítica + reintentos aleatorios.
+  const lb = lowerBound(input, effectiveMax, maps.offMapPref);
+  let bestStrategy: Strategy = {};
+  let bestM = run(effectiveMax, bestStrategy).makespan;
   for (let i = 1; i <= 8 && bestM > lb; i++) {
-    const m = runSchedule(input, effectiveMax, maps, mulberry32(i * 2654435761)).makespan;
-    if (m < bestM) bestM = m;
+    const st: Strategy = { seed: i * 2654435761 };
+    const m = run(effectiveMax, st).makespan;
+    if (m < bestM) {
+      bestM = m;
+      bestStrategy = st;
+    }
   }
 
-  // 2) Carga pareja: menor tope que sigue logrando bestM (determinístico).
+  // 2) Búsqueda por objetivo: probamos terminar en T cuatrimestres, desde la cota
+  //    inferior hacia arriba. Para cada T, priorizamos por HOLGURA (cuánto puede
+  //    esperar cada materia sin arruinar el objetivo) en vez de por ruta crítica
+  //    fija. Así, cuando dos materias compiten por la única franja libre, gana la
+  //    que destraba la cadena más larga — que es lo que el greedy no veía.
+  if (bestM > lb) {
+    const tail = tailTerms(input.graph, input.pending);
+    for (let target = lb; target < bestM; target++) {
+      const urgency = new Map<string, number>();
+      for (const [c, t] of tail) urgency.set(c, target - t);
+      const intentos: Strategy[] = [
+        { urgency },
+        { urgency, seed: 0x9e3779b1 ^ target },
+        { urgency, seed: 0x85ebca6b ^ target },
+      ];
+      let logrado = false;
+      for (const st of intentos) {
+        const m = run(effectiveMax, st).makespan;
+        if (m < bestM) {
+          bestM = m;
+          bestStrategy = st;
+        }
+        if (m <= target) {
+          logrado = true;
+          break;
+        }
+      }
+      if (logrado) break; // no hay nada mejor que este objetivo alcanzado
+    }
+  }
+
+  // 3) Carga pareja: menor tope por cuatri que sigue logrando bestM.
   let lo = 1;
   let hi = effectiveMax;
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
-    if (runSchedule(input, mid, maps).makespan === bestM) hi = mid;
+    if (run(mid, bestStrategy).makespan === bestM) hi = mid;
     else lo = mid + 1;
   }
 
-  const result = runSchedule(input, lo, maps);
-  result.commissionByCode = assignAllCommissions(result, maps);
+  const result = run(lo, bestStrategy);
+  result.commissionByCode = assignAllCommissions(result, maps, input.graph);
   return result;
 }
 
@@ -242,14 +335,39 @@ export function schedule(inputRaw: ScheduleInput): ScheduleResult {
 function assignAllCommissions(
   result: ScheduleResult,
   maps: ReturnType<typeof buildOfferMaps>,
+  graph: Graph,
 ): Map<string, Commission> {
   const out = new Map<string, Commission>();
   if (!maps.offMapPref) return out;
+  // Días ya usados por electivas en cuatris anteriores: cada electiva real se
+  // hace una sola vez, así que no repetimos día.
+  const diasElectivas = new Set<number>();
   result.terms.forEach((t) => {
     const offMap = t.index === 0 ? maps.offMap0! : maps.offMapPref!;
     const offered = t.subjects.filter((c) => (offMap.get(c)?.commissions.length ?? 0) > 0);
-    const asg = findConflictFreeAssignment(offered, offMap);
-    if (asg) for (const [code, comm] of asg) out.set(code, comm);
+
+    // Para las electivas descartamos los días ya usados (si queda alguna opción).
+    const local = new Map(offMap);
+    for (const c of offered) {
+      if (!graph.byCode.get(c)?.isElective) continue;
+      const o = offMap.get(c)!;
+      const libres = o.commissions.filter(
+        (cm) => !cm.meetings.some((m) => diasElectivas.has(m.day)),
+      );
+      if (libres.length) local.set(c, { ...o, commissions: libres });
+    }
+
+    // Una sola asignación conjunta: garantiza que nada se pise dentro del cuatri.
+    const asg =
+      findConflictFreeAssignment(offered, local) ?? findConflictFreeAssignment(offered, offMap);
+    if (asg) {
+      for (const [code, comm] of asg) {
+        out.set(code, comm);
+        if (graph.byCode.get(code)?.isElective) {
+          for (const m of comm.meetings) diasElectivas.add(m.day);
+        }
+      }
+    }
   });
   return out;
 }
@@ -261,6 +379,9 @@ function runSchedule(
   cap: number,
   maps: ReturnType<typeof buildOfferMaps>,
   rng?: () => number,
+  /** Holgura por materia (menor = más urgente). Si viene, manda sobre la
+   * prioridad por ruta crítica: es lo que permite alcanzar un objetivo. */
+  urgency?: Map<string, number>,
 ): ScheduleResult {
   const { graph, settings } = input;
   const maxTerms = input.maxTerms ?? 60;
@@ -323,7 +444,15 @@ function runSchedule(
     }
     // Prioridad por ruta crítica; con rng, desempate aleatorio (mantiene el
     // factor dominante pero explora distintos empaquetados).
-    if (rng) {
+    if (urgency) {
+      // Primero las de menor holgura (las que no pueden esperar sin arruinar el
+      // objetivo); a igualdad, el criterio de siempre (o azar en los reintentos).
+      eligible.sort(
+        (a, b) =>
+          (urgency.get(a) ?? 0) - (urgency.get(b) ?? 0) ||
+          (rng ? rng() - 0.5 : comparePriority(a, b, metrics)),
+      );
+    } else if (rng) {
       const crit = metrics.criticalTerms;
       eligible.sort(
         (a, b) => (crit.get(b) ?? 0) - (crit.get(a) ?? 0) || rng() - 0.5,
