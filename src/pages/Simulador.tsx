@@ -12,6 +12,12 @@ import { formatGraduation, termLabel, trackColor } from '@/lib/ui';
 import { validateManualPlan, SUMMER_MAX, type SubjectDiag, type TermDiag } from '@/domain/manual';
 import { schedule, calendarOf, type ScheduleResult } from '@/domain/scheduler';
 import { termToClipboardText, copyToClipboard, type TermItem } from '@/lib/exportTerm';
+import {
+  analizarOptimo,
+  franjasQueDestraban,
+  type Verdict,
+  type SlotSugerido,
+} from '@/domain/optimality';
 import type { PinnedTerm } from '@/store/useStore';
 import {
   offeringMap,
@@ -407,27 +413,119 @@ function Legenda() {
 
 function ResultBanner({ s }: { s: ScheduleResult }) {
   return (
-    <div className="flex flex-wrap items-center gap-6 rounded-xl border border-brand-500/40 bg-brand-500/5 p-5">
-      <div>
-        <div className="text-4xl font-bold tracking-tight">{s.makespan}</div>
-        <div className="text-sm text-slate-500 dark:text-slate-400">
-          cuatrimestres · {yearsLabel(s.years)}
+    <div className="rounded-xl border border-brand-500/40 bg-brand-500/5 p-5">
+      <div className="flex flex-wrap items-center gap-6">
+        <div>
+          <div className="text-4xl font-bold tracking-tight">{s.makespan}</div>
+          <div className="text-sm text-slate-500 dark:text-slate-400">
+            cuatrimestres · {yearsLabel(s.years)}
+          </div>
+        </div>
+        <div className="h-10 w-px bg-slate-300 dark:bg-slate-700" />
+        <div>
+          <div className="text-2xl font-semibold">{formatGraduation(s.graduation)}</div>
+          <div className="text-sm text-slate-500 dark:text-slate-400">
+            fin de la cursada (aprobando todo)
+          </div>
+        </div>
+        <div className="h-10 w-px bg-slate-300 dark:bg-slate-700" />
+        <div>
+          <div className="text-2xl font-semibold">{s.criticalChain.length}</div>
+          <div className="text-sm text-slate-500 dark:text-slate-400">
+            materias en la cadena crítica
+          </div>
         </div>
       </div>
-      <div className="h-10 w-px bg-slate-300 dark:bg-slate-700" />
-      <div>
-        <div className="text-2xl font-semibold">{formatGraduation(s.graduation)}</div>
-        <div className="text-sm text-slate-500 dark:text-slate-400">
-          fin de la cursada (aprobando todo)
+      <AnalisisOptimo makespan={s.makespan} />
+    </div>
+  );
+}
+
+/**
+ * "¿Se puede terminar antes?" — análisis a pedido. Por defecto es solo un enlace
+ * discreto; recién al tocarlo corre la búsqueda exhaustiva y muestra el
+ * resultado. Así no satura la pantalla ni gasta tiempo si no lo pedís.
+ */
+function AnalisisOptimo({ makespan }: { makespan: number }) {
+  const d = useDerived();
+  const settings = useStore((st) => st.user.settings);
+  const offer = useStore((st) => st.offer);
+  const [estado, setEstado] = useState<'inicial' | 'corriendo' | 'listo'>('inicial');
+  const [veredicto, setVeredicto] = useState<Verdict | null>(null);
+  const [franjas, setFranjas] = useState<SlotSugerido[]>([]);
+
+  // Si cambian los datos, el análisis anterior deja de valer.
+  useEffect(() => {
+    setEstado('inicial');
+    setVeredicto(null);
+    setFranjas([]);
+  }, [makespan, d.pending, settings, offer]);
+
+  if (!offer || d.pending.size === 0 || makespan <= 1) return null;
+
+  const inp = { graph, pending: d.pending, settings, offer, actual: makespan };
+
+  async function analizar() {
+    setEstado('corriendo');
+    // Cedemos un frame para que se vea el estado "analizando".
+    await new Promise((r) => setTimeout(r, 30));
+    const v = analizarOptimo(inp);
+    setVeredicto(v);
+    if (v.estado === 'optimo' && settings.restrictAvailability) {
+      await new Promise((r) => setTimeout(r, 30));
+      setFranjas(franjasQueDestraban(inp));
+    }
+    setEstado('listo');
+  }
+
+  return (
+    <div className="mt-4 border-t border-brand-500/20 pt-3 text-sm">
+      {estado === 'inicial' && (
+        <button
+          onClick={analizar}
+          className="text-slate-500 underline decoration-dotted underline-offset-4 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-300"
+        >
+          🔎 ¿Se puede terminar antes?
+        </button>
+      )}
+
+      {estado === 'corriendo' && (
+        <span className="text-slate-500 dark:text-slate-400">
+          Probando todas las combinaciones posibles…
+        </span>
+      )}
+
+      {estado === 'listo' && veredicto?.estado === 'optimo' && (
+        <div className="space-y-1">
+          <div className="font-medium text-emerald-600 dark:text-emerald-400">
+            ✓ No: {makespan} cuatrimestres es el mínimo posible.
+          </div>
+          {veredicto.motivo && (
+            <div className="text-slate-600 dark:text-slate-400">{veredicto.motivo}</div>
+          )}
+          {franjas.length > 0 && (
+            <div className="text-amber-600 dark:text-amber-400">
+              💡 Si pudieras cursar{' '}
+              <strong>{franjas.map((f) => f.etiqueta).join(' o ')}</strong>, terminarías un
+              cuatrimestre antes.
+            </div>
+          )}
         </div>
-      </div>
-      <div className="h-10 w-px bg-slate-300 dark:bg-slate-700" />
-      <div>
-        <div className="text-2xl font-semibold">{s.criticalChain.length}</div>
-        <div className="text-sm text-slate-500 dark:text-slate-400">
-          materias en la cadena crítica
+      )}
+
+      {estado === 'listo' && veredicto?.estado === 'mejorable' && (
+        <div className="text-amber-600 dark:text-amber-400">
+          Sí: existe un plan de <strong>{veredicto.minimo}</strong> cuatrimestres. Probá bajar
+          el mínimo de materias por cuatri o revisá tu disponibilidad.
         </div>
-      </div>
+      )}
+
+      {estado === 'listo' && veredicto?.estado === 'indeterminado' && (
+        <div className="text-slate-500 dark:text-slate-400">
+          Hay demasiadas combinaciones para verificarlo con certeza. El plan que ves es muy
+          bueno, pero no puedo garantizarte que sea el mínimo absoluto.
+        </div>
+      )}
     </div>
   );
 }
