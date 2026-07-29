@@ -109,10 +109,13 @@ function buildOfferMaps(input: ScheduleInput) {
   if (!offMap) return { offMapPref: null, offMap0: null, availableSlots };
 
   const cmp = preferenceComparator(availableSlots);
+  // A lo que ya estás cursando no le aplica tu disponibilidad: ya te inscribiste,
+  // así que su horario real vale aunque no hayas marcado ese turno.
+  const yaInscripto = new Set(input.preScheduled?.keys() ?? []);
   const base = new Map<string, Offering>();
   for (const [code, o] of offMap) {
     let comms = [...o.commissions].sort(cmp);
-    if (availableSlots) {
+    if (availableSlots && !yaInscripto.has(code)) {
       // Tu disponibilidad aplica a todos los cuatris. Si la materia tiene alguna
       // comisión que podés, usamos SOLO esas. Si NINGUNA entra (p.ej. el Proyecto
       // Final que solo se ofrece sábados y no marcaste ese slot), dejamos todas:
@@ -359,17 +362,45 @@ function assignAllCommissions(
 
     // Una sola asignación conjunta: garantiza que nada se pise dentro del cuatri.
     const asg =
-      findConflictFreeAssignment(offered, local) ?? findConflictFreeAssignment(offered, offMap);
-    if (asg) {
-      for (const [code, comm] of asg) {
-        out.set(code, comm);
-        if (graph.byCode.get(code)?.isElective) {
-          for (const m of comm.meetings) diasElectivas.add(m.day);
-        }
+      findConflictFreeAssignment(offered, local) ??
+      findConflictFreeAssignment(offered, offMap) ??
+      // Si el cuatri no cierra (p.ej. dos materias que solo se dictan a la misma
+      // hora), ubicamos las que sí entran en vez de dejarlas a todas sin horario:
+      // media agenda es mucho más útil que ninguna.
+      asignarLoQueEntre(offered, offMap);
+    for (const [code, comm] of asg) {
+      out.set(code, comm);
+      if (graph.byCode.get(code)?.isElective) {
+        for (const m of comm.meetings) diasElectivas.add(m.day);
       }
     }
   });
   return out;
+}
+
+/**
+ * Asignación parcial: ubica la mayor cantidad de materias que pueda sin choques.
+ * Va sumando de a una empezando por las más atadas (las de menos comisiones);
+ * la que no entra queda sin horario y se muestra aparte.
+ */
+function asignarLoQueEntre(
+  offered: string[],
+  offMap: Map<string, Offering>,
+): Map<string, Commission> {
+  const orden = [...offered].sort(
+    (a, b) =>
+      (offMap.get(a)?.commissions.length ?? 0) - (offMap.get(b)?.commissions.length ?? 0),
+  );
+  let mejor = new Map<string, Commission>();
+  const puestas: string[] = [];
+  for (const c of orden) {
+    const asg = findConflictFreeAssignment([...puestas, c], offMap);
+    if (asg) {
+      puestas.push(c);
+      mejor = asg;
+    }
+  }
+  return mejor;
 }
 
 /** Corre el greedy con un tope fijo `cap`, evitando choques en cada cuatri.

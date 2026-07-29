@@ -13,7 +13,6 @@ import { TALLER_CODE } from '@/domain/types';
 import { Badge } from '@/components/Badge';
 import { useSubjectName } from '@/lib/subjectName';
 import {
-  STATUS_CHIP,
   formatGraduation,
   gradeClass,
   termLabel,
@@ -22,7 +21,6 @@ import {
 export function Tablero() {
   const d = useDerived();
   const sched = useSchedule();
-  const user = useStore((s) => s.user);
   const updateSettings = useStore((s) => s.updateSettings);
   const name = useSubjectName();
 
@@ -37,6 +35,14 @@ export function Tablero() {
   const cursandoAhora =
     (sched.terms[0]?.subjects.length ?? 0) > 0 &&
     sched.terms[0].subjects.every((c) => d.enCurso.has(c));
+  // El cuatri que fijaste desde el armado manual suele ser el mismo que el
+  // primero del plan. Si coinciden, mostrarlos dos veces (con dos grillas
+  // idénticas) es puro ruido: dejamos solo el fijado, que trae los códigos.
+  const pinnedCodes = new Set((pinned?.items ?? []).map((it) => it.code));
+  const yaLoMuestraElFijado =
+    pinnedCodes.size > 0 &&
+    pinnedCodes.size === (sched.terms[0]?.subjects.length ?? -1) &&
+    sched.terms[0].subjects.every((c) => pinnedCodes.has(c));
   const alerts = generateAlerts(
     graph,
     d.statuses,
@@ -181,26 +187,6 @@ export function Tablero() {
         </section>
       )}
 
-      {/* En curso */}
-      <section>
-        <h3 className="mb-3 text-lg font-semibold">Cursando ahora</h3>
-        {user.inProgress.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            No tenés materias marcadas como “en curso”. Marcálas desde la
-            solapa <strong>Materias</strong> y el simulador las va a ubicar en
-            el cuatrimestre que estás haciendo, en vez de sugerirte otras.
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {user.inProgress.map((code) => (
-              <Badge key={code} className={STATUS_CHIP.inProgress}>
-                {name(code)}
-              </Badge>
-            ))}
-          </div>
-        )}
-      </section>
-
       {/* Cadena crítica */}
       {d.loaded && chain.length > 0 && (
         <section className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-5">
@@ -236,62 +222,76 @@ export function Tablero() {
       {/* Tu próximo cuatri (el que fijaste desde el armado manual) */}
       {pinned && pinned.items.length > 0 && <PinnedTermCard />}
 
-      {/* Próximo cuatri: el que estás cursando, o el que sugiere el simulador */}
+      {/* Próximo cuatri: el que estás cursando, o el que sugiere el simulador.
+          Si el cuatri fijado de arriba ya muestra exactamente estas materias,
+          no lo repetimos: solo queda el análisis de riesgo. */}
       {d.loaded && sched.terms.length > 0 && (
         <section>
-          <h3 className="mb-3 text-lg font-semibold">
-            {cursandoAhora ? 'Lo que estás cursando' : 'Próximo cuatrimestre sugerido'}{' '}
-            <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
-              ({termLabel(sched.terms[0].term, sched.terms[0].year)})
-            </span>
-          </h3>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {sched.terms[0].subjects.map((code) => {
-              const s = getSubject(code);
-              const inChain = chain.includes(code);
-              return (
-                <div
-                  key={code}
-                  className={`rounded-lg border p-3 ${
-                    inChain
-                      ? 'border-brand-500/50 bg-brand-500/5'
-                      : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{name(code)}</span>
-                    <span className="font-mono text-xs text-slate-400">
-                      {s?.code}
-                    </span>
-                  </div>
-                  {sched.commissionByCode.get(code)?.label && (
-                    <div className="mt-1 inline-block rounded bg-brand-500/10 px-1.5 py-0.5 text-xs font-semibold text-brand-700 dark:text-brand-300">
-                      👉 {sched.commissionByCode.get(code)!.label}
+          {!yaLoMuestraElFijado && (
+            <>
+              <h3 className="mb-1 text-lg font-semibold">
+                {cursandoAhora ? 'Lo que estás cursando' : 'Próximo cuatrimestre sugerido'}{' '}
+                <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
+                  ({termLabel(sched.terms[0].term, sched.terms[0].year)})
+                </span>
+              </h3>
+              <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+                {cursandoAhora
+                  ? 'Lo marcaste como “en curso”, así que el plan arranca acá.'
+                  : '¿Ya te inscribiste? Marcálas como “Cursando” en la solapa Materias y el plan va a arrancar por ellas.'}
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {sched.terms[0].subjects.map((code) => {
+                  const s = getSubject(code);
+                  const inChain = chain.includes(code);
+                  const comm = sched.commissionByCode.get(code);
+                  const m = comm?.meetings?.[0];
+                  return (
+                    <div
+                      key={code}
+                      className={`rounded-lg border p-3 ${
+                        inChain
+                          ? 'border-brand-500/50 bg-brand-500/5'
+                          : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{name(code)}</span>
+                        <span className="font-mono text-xs text-slate-400">
+                          {s?.code}
+                        </span>
+                      </div>
+                      <div className="mt-1 inline-block rounded bg-brand-500/10 px-1.5 py-0.5 text-xs font-semibold text-brand-700 dark:text-brand-300">
+                        {m
+                          ? `🕒 ${DAY_SHORT[m.day]} ${m.start}–${m.end}`
+                          : 'sin horario fijo'}
+                        {comm?.label ? ` · ${comm.label}` : ''}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {s?.track} · {s?.year}° año
+                        {inChain && (
+                          <span className="ml-1 font-medium text-brand-500">
+                            · ruta crítica
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {s?.track} · {s?.year}° año
-                    {inChain && (
-                      <span className="ml-1 font-medium text-brand-500">
-                        · ruta crítica
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-            <h4 className="mb-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-              Cómo te queda la semana
-            </h4>
-            <HorarioSemanal
-              materias={sched.terms[0].subjects.map((code) => {
-                const commission = sched.commissionByCode.get(code);
-                return { code, titulo: commission?.label, commission };
-              })}
-            />
-          </div>
+                  );
+                })}
+              </div>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                <h4 className="mb-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                  Cómo te queda la semana
+                </h4>
+                <HorarioSemanal
+                  materias={sched.terms[0].subjects.map((code) => {
+                    const commission = sched.commissionByCode.get(code);
+                    return { code, titulo: commission?.label, commission };
+                  })}
+                />
+              </div>
+            </>
+          )}
           <Intocables />
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
             Detalle completo del cronograma en la solapa{' '}

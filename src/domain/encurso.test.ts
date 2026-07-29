@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { graph } from './planGraph';
 import { subjects } from '../data/plan';
 import ofertaBase from '../data/oferta-base.json';
-import type { OfferData } from './conflicts';
+import { commissionsOverlap, type OfferData } from './conflicts';
 import { schedule, calendarOf } from './scheduler';
 import { DEFAULT_SETTINGS, TALLER_CODE } from './types';
 
@@ -76,6 +76,20 @@ describe('materias en curso', () => {
         expect(res.finishByCode.get(p)!, `${p} antes de ${code}`).toBeLessThan(inicio);
       }
     }
+  });
+
+  it('les asigna horario aunque no entren en tu disponibilidad', () => {
+    // A lo que ya cursás no le aplica el filtro de turnos (ya te inscribiste), y
+    // si aun así el cuatri no cierra se ubica lo que entre. Antes fallaba la
+    // asignación conjunta y las SEIS quedaban sin horario: la grilla vacía.
+    for (const c of enCurso) {
+      expect(res.commissionByCode.get(c), `${c} sin horario`).toBeDefined();
+    }
+    // Y las que sí tienen horario no se pisan entre ellas.
+    const comms = enCurso.map((c) => res.commissionByCode.get(c)!);
+    for (let i = 0; i < comms.length; i++)
+      for (let j = i + 1; j < comms.length; j++)
+        expect(commissionsOverlap(comms[i], comms[j])).toBe(false);
   });
 
   it('no infla la duración: sigue dando 6 cuatrimestres', () => {
