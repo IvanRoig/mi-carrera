@@ -17,7 +17,10 @@ export default defineConfig({
     VitePWA({
       // `autoUpdate`: cuando publicamos una versión nueva, se instala sola y se
       // aplica al recargar. Nada de quedarse con una versión vieja pegada.
-      registerType: 'autoUpdate',
+      // 'prompt', no 'autoUpdate': con autoUpdate la página se recarga sola
+      // apenas se publica una versión, y si estabas en medio de un análisis
+      // pesado (o escribiendo notas) lo perdías. Ahora avisa y vos decidís.
+      registerType: 'prompt',
       includeAssets: ['apple-touch-icon.png'],
       manifest: {
         name: 'Mi Carrera · UNLaM',
