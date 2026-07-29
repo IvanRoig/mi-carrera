@@ -542,6 +542,13 @@ function AnalisisOptimo({ makespan }: { makespan: number }) {
       {estado === 'inicial' && (
         <button
           onClick={analizar}
+          title={
+            'Prueba TODAS las combinaciones posibles para ver si existe un plan más corto que este.\n\n' +
+            '· Si no existe, te lo confirma y te explica qué te está frenando.\n' +
+            '· Si existe, te lo muestra y podés aplicarlo con un clic.\n' +
+            '· Si filtrás por disponibilidad, te dice qué día/turno tendrías que liberar para ahorrar un cuatrimestre.\n\n' +
+            'Corre en segundo plano: podés seguir usando la página y cancelarlo cuando quieras.'
+          }
           className="text-slate-500 underline decoration-dotted underline-offset-4 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-300"
         >
           🔎 ¿Se puede terminar antes?
