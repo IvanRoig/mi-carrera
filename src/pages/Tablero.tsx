@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { useDerived, useSchedule } from '@/lib/useDerived';
 import { useStore } from '@/store/useStore';
+import { DAY_SHORT } from '@/domain/conflicts';
+import { termToClipboardText, copyToClipboard, type TermItem } from '@/lib/exportTerm';
 import { getSubject } from '@/data/plan';
 import { graph } from '@/domain/planGraph';
 import { generateAlerts } from '@/domain/alerts';
@@ -22,6 +25,7 @@ export function Tablero() {
   const name = useSubjectName();
 
   const offer = useStore((s) => s.offer);
+  const pinned = useStore((s) => s.pinnedTerm);
   const includeTaller = useStore((s) => s.user.settings.includeTaller);
   const grad = sched.graduation;
   const restantes = sched.makespan;
@@ -222,6 +226,9 @@ export function Tablero() {
         </section>
       )}
 
+      {/* Tu próximo cuatri (el que fijaste desde el armado manual) */}
+      {pinned && pinned.items.length > 0 && <PinnedTermCard />}
+
       {/* Próximo cuatri sugerido */}
       {d.loaded && sched.terms.length > 0 && (
         <section>
@@ -274,6 +281,96 @@ export function Tablero() {
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * El cuatrimestre que fijaste desde el armado manual. Es lo que vas a inscribir,
+ * así que se muestra con día, horario y los códigos listos para copiar.
+ */
+function PinnedTermCard() {
+  const pinned = useStore((s) => s.pinnedTerm)!;
+  const setPinnedTerm = useStore((s) => s.setPinnedTerm);
+  const name = useSubjectName();
+  const [copied, setCopied] = useState<'ok' | 'err' | null>(null);
+
+  const items: TermItem[] = pinned.items.map((it) => ({
+    code: it.code,
+    name: it.label ?? name(it.code),
+    commission:
+      it.day != null && it.start && it.end
+        ? {
+            id: it.commId ?? '',
+            modality: 'presencial',
+            meetings: [{ day: it.day, start: it.start, end: it.end }],
+            label: it.label,
+            subjectCode: it.subjectCode,
+          }
+        : undefined,
+    day: it.day,
+  }));
+
+  async function copy() {
+    const ok = await copyToClipboard(termToClipboardText(items, pinned.label));
+    setCopied(ok ? 'ok' : 'err');
+    setTimeout(() => setCopied(null), 1800);
+  }
+
+  const sorted = [...pinned.items].sort(
+    (a, b) => (a.day ?? 9) - (b.day ?? 9) || (a.start ?? '').localeCompare(b.start ?? ''),
+  );
+
+  return (
+    <section className="rounded-xl border border-brand-500/40 bg-brand-500/5 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold">
+            📌 Tu próximo cuatrimestre{' '}
+            <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
+              ({pinned.label})
+            </span>
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            El que fijaste desde el <strong>armado manual</strong>. Copialo para tenerlo
+            a mano en la inscripción.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={copy}
+            className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            {copied === 'ok' ? '✅ Copiado' : copied === 'err' ? '⚠️ No se pudo' : '📋 Copiar'}
+          </button>
+          <button
+            onClick={() => setPinnedTerm(null)}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            Quitar
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {sorted.map((it) => (
+          <div
+            key={it.code}
+            className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+          >
+            <div className="font-medium">{it.label ?? name(it.code)}</div>
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {it.day != null && it.start
+                ? `${DAY_SHORT[it.day]} ${it.start}${it.end ? `–${it.end}` : ''}`
+                : 'sin día fijo'}
+            </div>
+            <div className="mt-1 font-mono text-[11px] text-slate-400">
+              mat {(it.subjectCode ?? it.code).replace(/^0+/, '')}
+              {it.commId && /^\d+$/.test(it.commId) ? ` · com ${it.commId}` : ''}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

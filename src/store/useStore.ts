@@ -31,6 +31,31 @@ export type ManualTerm = {
   id: string;
   /** Códigos de materias ubicadas en este cuatri. */
   subjects: string[];
+  /** Cuatrimestre de verano (intensivo): hasta 2 materias, no correlativas
+   * entre sí ni dos transversales. La oferta depende de la demanda, así que
+   * el día/horario se elige libremente. */
+  summer?: boolean;
+};
+
+/** Una materia del cuatri que fijaste como "próximo cuatrimestre". */
+export type PinnedItem = {
+  code: string;
+  /** Código de comisión (si la oferta lo tiene). */
+  commId?: string;
+  day?: number;
+  start?: string;
+  end?: string;
+  /** Nombre real (para electivas). */
+  label?: string;
+  /** Código real de la materia (para electivas: el de la electiva concreta). */
+  subjectCode?: string;
+};
+
+/** El cuatri que marcaste como "mi próximo cuatrimestre" (se ve en el Tablero). */
+export type PinnedTerm = {
+  /** Etiqueta legible, p.ej. "1° cuatri 2027" o "Verano 2027". */
+  label: string;
+  items: PinnedItem[];
 };
 
 type RawState = {
@@ -59,6 +84,8 @@ export type StoreState = {
    * (0=Lun..4=Vie) de la electiva real que querés cursar. Sin entrada = sin
    * preferencia (el simulador busca lo óptimo). */
   electivePref: Record<string, number>;
+  /** Cuatri fijado como "el próximo" (se muestra en el Tablero). */
+  pinnedTerm: PinnedTerm | null;
   /** Oferta de comisiones del cuatrimestre cargada (opcional). */
   offer: OfferData | null;
 
@@ -104,7 +131,12 @@ export type StoreState = {
   /** Coloca una materia en un cuatri, día y turno específicos. */
   placeOnSlot: (code: string, termId: string, day: number, turno: 'm' | 't' | 'n') => void;
   addManualTerm: () => void;
+  /** Inserta un cuatrimestre de verano justo después del cuatri indicado. */
+  addSummerTerm: (afterTermId: string) => void;
   removeManualTerm: (termId: string) => void;
+
+  // --- Próximo cuatrimestre fijado ---
+  setPinnedTerm: (t: PinnedTerm | null) => void;
 
   // --- Oferta ---
   setOffer: (offer: OfferData | null) => void;
@@ -145,6 +177,7 @@ export const useStore = create<StoreState>()(
       manualForcedTurno: {},
       simMode: 'auto',
       electivePref: {},
+      pinnedTerm: null,
       offer: baseOffer,
 
       setApproved: (code, grade) =>
@@ -311,6 +344,7 @@ export const useStore = create<StoreState>()(
           manualForcedTurno: {},
           simMode: 'auto',
           electivePref: {},
+          pinnedTerm: null,
           offer: baseOffer,
         })),
 
@@ -408,10 +442,21 @@ export const useStore = create<StoreState>()(
           ],
         })),
 
+      addSummerTerm: (afterTermId) =>
+        set((s) => {
+          const i = s.manualTerms.findIndex((t) => t.id === afterTermId);
+          if (i < 0) return s;
+          const terms = [...s.manualTerms];
+          terms.splice(i + 1, 0, { id: crypto.randomUUID(), subjects: [], summer: true });
+          return { manualTerms: terms };
+        }),
+
       removeManualTerm: (termId) =>
         set((s) => ({
           manualTerms: s.manualTerms.filter((t) => t.id !== termId),
         })),
+
+      setPinnedTerm: (t) => set(() => ({ pinnedTerm: t })),
 
       setOffer: (offer) => set(() => ({ offer })),
     }),

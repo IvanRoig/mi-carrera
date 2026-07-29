@@ -2,14 +2,17 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDerived, useSchedule } from '@/lib/useDerived';
 import { useStore } from '@/store/useStore';
 import { graph } from '@/domain/planGraph';
+import { ancestorsOf } from '@/domain/graph';
 import { getSubject } from '@/data/plan';
 import { useSubjectName } from '@/lib/subjectName';
 import { SettingsBar } from '@/components/SettingsBar';
 import { AvailabilityGrid } from '@/components/AvailabilityGrid';
 import { Badge } from '@/components/Badge';
 import { formatGraduation, termLabel, trackColor } from '@/lib/ui';
-import { validateManualPlan, type SubjectDiag } from '@/domain/manual';
+import { validateManualPlan, SUMMER_MAX, type SubjectDiag, type TermDiag } from '@/domain/manual';
 import { schedule, calendarOf, type ScheduleResult } from '@/domain/scheduler';
+import { termToClipboardText, copyToClipboard, type TermItem } from '@/lib/exportTerm';
+import type { PinnedTerm } from '@/store/useStore';
 import {
   offeringMap,
   commissionFitsAvailability,
@@ -326,11 +329,18 @@ function AutoView({
               key={t.index}
               className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
             >
-              <div className="mb-2 flex items-baseline justify-between">
+              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
                 <h4 className="font-semibold">{termLabel(t.term, t.year)}</h4>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  {t.subjects.length} materias · {t.totalHours} hs
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {t.subjects.length} materias · {t.totalHours} hs
+                  </span>
+                  <CopyTermButton
+                    title={termLabel(t.term, t.year)}
+                    codes={t.subjects}
+                    assigned={s.commissionByCode}
+                  />
+                </div>
               </div>
               <TermGrid
                 codes={t.subjects}
@@ -344,6 +354,39 @@ function AutoView({
       </div>
       <Legenda />
     </div>
+  );
+}
+
+/** Copia las materias de un cuatri (con códigos) para la inscripción. */
+function CopyTermButton({
+  title,
+  codes,
+  assigned,
+}: {
+  title: string;
+  codes: string[];
+  assigned: Map<string, Commission>;
+}) {
+  const name = useSubjectName();
+  const [state, setState] = useState<'ok' | 'err' | null>(null);
+  async function copy() {
+    const items: TermItem[] = codes.map((code) => {
+      const commission = assigned.get(code);
+      return { code, name: commission?.label ?? name(code), commission };
+    });
+    const done = await copyToClipboard(termToClipboardText(items, title));
+    setState(done ? 'ok' : 'err');
+    setTimeout(() => setState(null), 1800);
+  }
+  return (
+    <button
+      onClick={copy}
+      disabled={codes.length === 0}
+      className="rounded bg-slate-500/10 px-1.5 py-0.5 text-[10px] text-slate-600 hover:bg-slate-500/20 disabled:opacity-40 dark:text-slate-300"
+      title="Copiar las materias con código de materia y comisión (para la inscripción)"
+    >
+      {state === 'ok' ? '✅ copiado' : state === 'err' ? '⚠️ no se pudo' : '📋 copiar'}
+    </button>
   );
 }
 
@@ -404,11 +447,16 @@ function ManualView() {
   const moveToManualTerm = useStore((s) => s.moveToManualTerm);
   const placeOnSlot = useStore((s) => s.placeOnSlot);
   const addManualTerm = useStore((s) => s.addManualTerm);
+  const addSummerTerm = useStore((s) => s.addSummerTerm);
   const removeManualTerm = useStore((s) => s.removeManualTerm);
+  const setPinnedTerm = useStore((s) => s.setPinnedTerm);
+  const pinnedTerm = useStore((s) => s.pinnedTerm);
   const offer = useStore((s) => s.offer);
   const settings = useStore((s) => s.user.settings);
   const difficultArr = useStore((s) => s.user.difficult);
   const electivePref = useStore((s) => s.electivePref);
+  /** Feedback efímero de los botones (copiado / fijado). */
+  const [flash, setFlash] = useState<string | null>(null);
 
   // Drag propio con pointer events (robusto, funciona en celu y no se cancela).
   const [drag, setDrag] = useState<{ code: string; x: number; y: number } | null>(null);
@@ -506,13 +554,37 @@ function ManualView() {
     if (!dragging) return { kind: 'ok', reason: '' };
     const s = graph.byCode.get(dragging)!;
     const turnoTxt = turno === 'm' ? 'mañana' : turno === 't' ? 'tarde' : 'noche';
-    const cal = calendarOf(termIdx, settings.startYear, settings.startTerm);
-    if ((s.annual || s.startsOnlyFirstSemester) && !cal.isFirstSemester)
-      return { kind: 'block', reason: 'Solo puede arrancar en un 1er cuatrimestre (anual / Proyecto Final).' };
+    const term = diag.terms[termIdx];
+    const isSummer = !!term?.summer;
+    // El calendario sale del diagnóstico (tiene en cuenta los veranos).
+    const cal = term ?? calendarOf(termIdx, settings.startYear, settings.startTerm);
+    if (s.annual || s.startsOnlyFirstSemester) {
+      if (isSummer)
+        return { kind: 'block', reason: `${name(dragging)} es anual: no se puede hacer en el verano intensivo.` };
+      if (!cal.isFirstSemester)
+        return { kind: 'block', reason: 'Solo puede arrancar en un 1er cuatrimestre (anual / Proyecto Final).' };
+    }
     const reqs = graph.prereqs.get(dragging) ?? [];
     const missing = reqs.filter((p) => (finishMap.get(p) ?? Infinity) >= termIdx);
     if (missing.length)
       return { kind: 'block', reason: `Te faltan correlativas antes: ${missing.map(name).join(', ')}.` };
+
+    // --- Verano: no hay oferta conocida, solo valen las reglas del intensivo ---
+    if (isSummer) {
+      const otros = term.subjects.filter((sd) => sd.code !== dragging);
+      if (otros.length >= SUMMER_MAX)
+        return { kind: 'block', reason: `En el verano podés cursar hasta ${SUMMER_MAX} materias.` };
+      const corr = otros.find(
+        (sd) => ancestorsOf(graph, sd.code).has(dragging) || ancestorsOf(graph, dragging).has(sd.code),
+      );
+      if (corr)
+        return { kind: 'block', reason: `${name(dragging)} y ${name(corr.code)} son correlativas: no podés hacerlas juntas en el verano.` };
+      if (s.track === 'Transversal' && otros.some((sd) => graph.byCode.get(sd.code)?.track === 'Transversal'))
+        return { kind: 'block', reason: 'Solo una transversal (Inglés/Computación) por verano.' };
+      if (otros.some((sd) => sd.day === day && sd.turno === turno))
+        return { kind: 'conflict', reason: `Ya tenés otra materia ese día y turno.` };
+      return { kind: 'ok', reason: `Verano: elegís vos el día y horario 👍` };
+    }
 
     const o = offMap?.get(dragging);
     if (!o || o.commissions.length === 0)
@@ -590,12 +662,14 @@ function ManualView() {
   }, [drag?.code, placeOnSlot, moveToManualTerm]);
 
   const hoverStatus = drag && hover ? slotStatus(hover.term, hover.day, hover.turno) : null;
+  // Bandas bien sólidas: con las materias desvanecidas detrás, el color se lee
+  // limpio (antes eran translúcidas y se mezclaban con la materia de fondo).
   const cellColor = (st: DayStatus) =>
     st.kind === 'ok'
-      ? 'bg-emerald-500/20 ring-1 ring-emerald-400'
+      ? 'bg-emerald-500/80 ring-1 ring-emerald-300'
       : st.kind === 'no-oferta'
-        ? 'bg-amber-500/20 ring-1 ring-amber-400'
-        : 'bg-rose-500/20 ring-1 ring-rose-400';
+        ? 'bg-amber-500/80 ring-1 ring-amber-300'
+        : 'bg-rose-500/80 ring-1 ring-rose-300';
 
   // Agrupa las materias de un cuatri (con su diagnóstico) por día y turno.
   type Item = { sd: SubjectDiag; cont: boolean };
@@ -617,6 +691,50 @@ function ManualView() {
     for (const sd of subs) add(sd, false);
     for (const sd of continuing) add(sd, true);
     return { cols, noDay };
+  }
+
+  /** Título de un cuatri ("1° cuatri 2027" o "Verano 2027"). */
+  const titleOf = (t: TermDiag) => (t.summer ? `Verano ${t.year}` : termLabel(t.term, t.year));
+
+  /** Materias de un cuatri en el formato que se copia / se fija. */
+  const itemsOf = (t: TermDiag): TermItem[] =>
+    t.subjects.map((sd) => ({
+      code: sd.code,
+      name: sd.commission?.label ?? name(sd.code),
+      commission: sd.commission,
+      day: sd.day,
+      turno: sd.turno,
+    }));
+
+  async function copyTerm(t: TermDiag) {
+    const items = itemsOf(t);
+    if (items.length === 0) return;
+    const ok = await copyToClipboard(termToClipboardText(items, titleOf(t)));
+    setFlash(ok ? `copiado:${t.id}` : `error:${t.id}`);
+    setTimeout(() => setFlash(null), 1800);
+  }
+
+  function pinTerm(t: TermDiag) {
+    const pin: PinnedTerm = {
+      label: titleOf(t),
+      items: t.subjects.map((sd) => {
+        const m = sd.commission?.meetings.length
+          ? [...sd.commission.meetings].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))[0]
+          : undefined;
+        return {
+          code: sd.code,
+          commId: sd.commission?.id,
+          day: sd.day ?? m?.day,
+          start: m?.start,
+          end: m?.end,
+          label: sd.commission?.label,
+          subjectCode: sd.commission?.subjectCode,
+        };
+      }),
+    };
+    setPinnedTerm(pin);
+    setFlash(`fijado:${t.id}`);
+    setTimeout(() => setFlash(null), 1800);
   }
 
   const warnOf = (sd: SubjectDiag): 'conflict' | 'no-oferta' | 'correlativa' | null =>
@@ -739,12 +857,32 @@ function ManualView() {
               />
             );
             return (
-              <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="text-sm font-semibold">{termLabel(t.term, t.year)}</h4>
-                  <div className="flex items-center gap-2 text-[10px]">
+              <div
+                key={t.id}
+                className={`rounded-xl border p-3 ${
+                  t.summer
+                    ? 'border-orange-400/50 bg-orange-500/5 dark:border-orange-500/40'
+                    : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+                }`}
+              >
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-sm font-semibold">
+                    {t.summer && <span className="mr-1" title="Cuatrimestre intensivo">☀️</span>}
+                    {titleOf(t)}
+                    {t.summer && (
+                      <span className="ml-1.5 text-[10px] font-normal text-orange-600 dark:text-orange-400">
+                        intensivo · hasta {SUMMER_MAX} materias
+                      </span>
+                    )}
+                    {pinnedTerm?.label === titleOf(t) && (
+                      <span className="ml-1.5 rounded bg-brand-500/15 px-1.5 py-0.5 text-[10px] font-medium text-brand-600 dark:text-brand-300">
+                        📌 tu próximo cuatri
+                      </span>
+                    )}
+                  </h4>
+                  <div className="flex items-center gap-1.5 text-[10px]">
                     <span className={`rounded px-1.5 py-0.5 ${t.overCapacity ? 'bg-rose-500/15 text-rose-500' : 'bg-slate-500/10 text-slate-500'}`}>
-                      {t.count}/{settings.maxPerTerm}
+                      {t.count}/{t.summer ? SUMMER_MAX : settings.maxPerTerm}
                     </span>
                     {t.conflictCount > 0 && (
                       <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-rose-500">
@@ -752,17 +890,54 @@ function ManualView() {
                       </span>
                     )}
                     <button
+                      onClick={() => copyTerm(t)}
+                      disabled={t.subjects.length === 0}
+                      className="rounded bg-slate-500/10 px-1.5 py-0.5 text-slate-600 hover:bg-slate-500/20 disabled:opacity-40 dark:text-slate-300"
+                      title="Copiar las materias con código de materia y comisión (para la inscripción)"
+                    >
+                      {flash === `copiado:${t.id}` ? '✅ copiado' : flash === `error:${t.id}` ? '⚠️ no se pudo' : '📋 copiar'}
+                    </button>
+                    <button
+                      onClick={() => pinTerm(t)}
+                      disabled={t.subjects.length === 0}
+                      className="rounded bg-brand-500/10 px-1.5 py-0.5 text-brand-600 hover:bg-brand-500/20 disabled:opacity-40 dark:text-brand-300"
+                      title="Mostrar este cuatri como “tu próximo cuatrimestre” en el Tablero"
+                    >
+                      {flash === `fijado:${t.id}` ? '✅ fijado' : '📌 es mi próximo'}
+                    </button>
+                    <button
                       onClick={() => autocompleteFrom(idx)}
                       className="rounded bg-brand-500/10 px-1.5 py-0.5 text-brand-600 hover:bg-brand-500/20 dark:text-brand-300"
                       title="Fijar hasta este cuatri (incluido) y autocompletar los siguientes"
                     >
                       🪄 completar desde acá
                     </button>
+                    {!t.summer && t.term === 2 && !diag.terms[idx + 1]?.summer && (
+                      <button
+                        onClick={() => addSummerTerm(t.id)}
+                        className="rounded bg-orange-500/10 px-1.5 py-0.5 text-orange-600 hover:bg-orange-500/20 dark:text-orange-400"
+                        title="Agregar el cuatrimestre intensivo de verano después de este"
+                      >
+                        ☀️ + verano
+                      </button>
+                    )}
                     <button onClick={() => removeManualTerm(t.id)} className="text-slate-400 hover:text-rose-500" title="Eliminar cuatri">
                       ✕
                     </button>
                   </div>
                 </div>
+
+                {t.summerErrors?.map((e) => (
+                  <div key={e} className="mb-1.5 rounded bg-rose-500/10 px-2 py-1 text-[11px] text-rose-600 dark:text-rose-400">
+                    ⛔ {e}
+                  </div>
+                ))}
+                {t.summer && !t.summerErrors && (
+                  <p className="mb-1.5 text-[10px] text-orange-600/80 dark:text-orange-400/80">
+                    La oferta de verano depende de la demanda, así que elegí materia y horario
+                    libremente: no te avisamos por horarios. Sí valen las correlativas.
+                  </p>
+                )}
 
                 <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] gap-1.5">
                   {DAYS.map((day) => {
@@ -782,24 +957,37 @@ function ManualView() {
                         <div className="mb-1 text-center text-[10px] font-semibold text-slate-400">
                           {DAY_SHORT[day]}
                         </div>
-                        <div className="space-y-1">{chips.map(chipOf)}</div>
-                        {/* Colores de turno superpuestos (solo visual) mientras arrastrás. */}
+                        {/* Al arrastrar, las materias se desvanecen: así las bandas
+                            de color se leen limpias y no queda todo mezclado. */}
+                        <div
+                          className={`space-y-1 transition-opacity duration-150 ${
+                            dragging ? 'opacity-[0.06]' : ''
+                          }`}
+                        >
+                          {chips.map(chipOf)}
+                        </div>
                         {dragging && (
                           <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[18px] flex flex-col gap-0.5">
                             {TURNOS.map(({ key: turno, label }) => {
                               const st = slotStatus(idx, day, turno);
                               const isHover =
                                 hover?.term === idx && hover?.day === day && hover?.turno === turno;
+                              const ocupadas = col[turno].length;
                               return (
                                 <div
                                   key={turno}
-                                  className={`flex flex-1 items-start justify-center rounded-md ${cellColor(st)} ${
-                                    isHover ? 'ring-2 ring-white/80' : ''
-                                  }`}
+                                  className={`flex flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md text-white ${cellColor(
+                                    st,
+                                  )} ${isHover ? 'ring-2 ring-white shadow-lg' : ''}`}
                                 >
-                                  <span className="mt-0.5 text-[8px] uppercase tracking-wide text-white/90">
+                                  <span className="text-[8px] font-semibold uppercase tracking-wide">
                                     {label}
                                   </span>
+                                  {ocupadas > 0 && (
+                                    <span className="text-[8px] leading-none text-white/85">
+                                      {ocupadas} ubicada{ocupadas > 1 ? 's' : ''}
+                                    </span>
+                                  )}
                                 </div>
                               );
                             })}
