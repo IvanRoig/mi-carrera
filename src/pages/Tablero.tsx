@@ -35,14 +35,9 @@ export function Tablero() {
   const cursandoAhora =
     (sched.terms[0]?.subjects.length ?? 0) > 0 &&
     sched.terms[0].subjects.every((c) => d.enCurso.has(c));
-  // El cuatri que fijaste desde el armado manual suele ser el mismo que el
-  // primero del plan. Si coinciden, mostrarlos dos veces (con dos grillas
-  // idénticas) es puro ruido: dejamos solo el fijado, que trae los códigos.
-  const pinnedCodes = new Set((pinned?.items ?? []).map((it) => it.code));
-  const yaLoMuestraElFijado =
-    pinnedCodes.size > 0 &&
-    pinnedCodes.size === (sched.terms[0]?.subjects.length ?? -1) &&
-    sched.terms[0].subjects.every((c) => pinnedCodes.has(c));
+  // Si fijaste un cuatrimestre, ese manda: es tu decisión, no una sugerencia.
+  // Mostrar los dos (con dos grillas semanales) sería puro ruido.
+  const hayFijado = (pinned?.items.length ?? 0) > 0;
   const alerts = generateAlerts(
     graph,
     d.statuses,
@@ -223,11 +218,13 @@ export function Tablero() {
       {pinned && pinned.items.length > 0 && <PinnedTermCard />}
 
       {/* Próximo cuatri: el que estás cursando, o el que sugiere el simulador.
-          Si el cuatri fijado de arriba ya muestra exactamente estas materias,
-          no lo repetimos: solo queda el análisis de riesgo. */}
-      {d.loaded && sched.terms.length > 0 && (
+          Se muestra SIEMPRE que haya algo por planificar — también si recién
+          arrancás y no cargaste ninguna aprobada: ahí es justamente lo más útil
+          que te puede decir la app. Si fijaste uno a mano, ese manda y este no
+          se repite. */}
+      {sched.terms.length > 0 && (
         <section>
-          {!yaLoMuestraElFijado && (
+          {!hayFijado && (
             <>
               <h3 className="mb-1 text-lg font-semibold">
                 {cursandoAhora ? 'Lo que estás cursando' : 'Próximo cuatrimestre sugerido'}{' '}
@@ -292,7 +289,11 @@ export function Tablero() {
               </div>
             </>
           )}
-          <Intocables />
+          {/* Si fijaste un cuatri, el riesgo se calcula sobre ESAS materias:
+              son las que vas a cursar. */}
+          <Intocables
+            materias={hayFijado ? pinned!.items.map((it) => it.code) : undefined}
+          />
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
             Detalle completo del cronograma en la solapa{' '}
             <strong>Simulador</strong>.
@@ -350,7 +351,7 @@ function PinnedTermCard() {
             </span>
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            El que fijaste desde el <strong>armado manual</strong>. Copialo para tenerlo
+            El que fijaste desde el <strong>Simulador</strong>. Copialo para tenerlo
             a mano en la inscripción.
           </p>
         </div>

@@ -27,6 +27,7 @@ import {
   TURNO_LABEL,
 } from './conflicts';
 import type { UserSettings } from './types';
+import { schedule } from './scheduler';
 
 export type OptimalityInput = {
   graph: Graph;
@@ -886,6 +887,10 @@ export type Riesgo = {
   atraso: number | null;
   /** Último cuatrimestre (índice) en el que podés cursarla sin atrasarte. */
   limite: number | null;
+  /** Cota superior siempre disponible: el simulador armó un plan de verdad que
+   * se atrasa esto. Si `atraso` quedó en null, al menos podemos decir "a lo
+   * sumo tanto" en vez de no decir nada. */
+  alSumo?: number;
 };
 
 /**
@@ -909,8 +914,45 @@ export function analizarRiesgo(
   const { porMateria, mat } = preparar(inp, offMap, disponibles);
   const base = inp.actual;
 
-  const entra = (code: string, t: number, T: number) =>
-    consultar(inp, porMateria, mat, code, t, T, MS_POR_PREGUNTA);
+  /**
+   * Cota superior CONSTRUCTIVA. La búsqueda exhaustiva es buenísima para
+   * demostrar que algo es imposible y malísima para encontrar un plan cuando
+   * sobra lugar (ataca primero las materias más atadas, así que pelea contra el
+   * orden de las correlativas). Para eso ya tenemos el simulador de siempre, que
+   * arma un plan REAL en milisegundos: si le sale uno de T cuatrimestres,
+   * entonces existe, y no hay nada que buscar.
+   */
+  const enCurso = (inp.enCurso ?? []).filter((c) => inp.pending.has(c));
+  const doneParaSim = new Set(
+    [...inp.graph.byCode.keys()].filter((c) => !inp.pending.has(c)),
+  );
+  const memoArriba = new Map<string, number>();
+  const arriba = (code: string, t: number): number => {
+    const clave = `${code}@${t}`;
+    const m = memoArriba.get(clave);
+    if (m !== undefined) return m;
+    const fijas = enCurso.filter((c) => c !== code);
+    const r = schedule({
+      graph: inp.graph,
+      pending: new Set([...inp.pending].filter((c) => !fijas.includes(c))),
+      done: doneParaSim,
+      settings: inp.settings,
+      offer: inp.offer,
+      difficult: new Set(),
+      electivePref: inp.electivePref,
+      preScheduled: fijas.length ? new Map(fijas.map((c) => [c, 0])) : undefined,
+      firstFreeTerm: fijas.length ? 1 : 0,
+      noAntesDe: new Map([[code, t]]),
+    });
+    memoArriba.set(clave, r.makespan);
+    return r.makespan;
+  };
+
+  const entra = (code: string, t: number, T: number): boolean | null => {
+    // Primero lo barato: ¿el simulador arma uno que entre?
+    if (arriba(code, t) <= T) return true;
+    return consultar(inp, porMateria, mat, code, t, T, MS_POR_PREGUNTA);
+  };
 
   const out: Riesgo[] = [];
   let hechas = 0;
@@ -948,7 +990,11 @@ export function analizarRiesgo(
         }
       }
     }
-    const r: Riesgo = { code, atraso, limite };
+    // Aunque no hayamos podido demostrar el atraso exacto, el simulador armó un
+    // plan de verdad: eso ya es un techo, y decir "a lo sumo tanto" es mucho más
+    // útil que "demasiadas combinaciones".
+    const techo = Math.max(0, arriba(code, 1) - base);
+    const r: Riesgo = { code, atraso, limite, alSumo: techo };
     out.push(r);
     onCada?.(r, ++hechas, delPrimerCuatri.length);
   }

@@ -73,6 +73,9 @@ export type ScheduleInput = {
   sicario?: boolean;
   preScheduled?: Map<string, number>;
   firstFreeTerm?: number;
+  /** Piso por materia: no puede arrancar antes de ese cuatrimestre. Se usa para
+   * preguntar "¿y si desapruebo esta?" (la recursás al siguiente). */
+  noAntesDe?: Map<string, number>;
   /** Preferencia de electiva: código de cupo (Electiva I/II/III) → día elegido
    * (0=Lun..4=Vie). Fuerza esa electiva al día elegido. Sin entrada = sin
    * preferencia (el simulador elige el óptimo). */
@@ -469,6 +472,7 @@ function runSchedule(
     const eligible: string[] = [];
     for (const c of pending) {
       const s = sub(c);
+      if (t < (input.noAntesDe?.get(c) ?? 0)) continue;
       if ((s.annual || s.startsOnlyFirstSemester) && !cal.isFirstSemester) continue;
       const reqs = graph.prereqs.get(c) ?? [];
       if (reqs.every((p) => (finishByCode.get(p) ?? Infinity) < t)) eligible.push(c);
@@ -637,7 +641,8 @@ function improve(
       const reqs = graph.prereqs.get(c) ?? [];
       let earliest = 0;
       for (const p of reqs) earliest = Math.max(earliest, (finishByCode.get(p) ?? -1) + 1);
-      const minTarget = input.offer ? Math.max(earliest, 1) : earliest;
+      let minTarget = input.offer ? Math.max(earliest, 1) : earliest;
+      minTarget = Math.max(minTarget, input.noAntesDe?.get(c) ?? 0);
 
       for (let t = minTarget; t < lastTerm; t++) {
         const cal = calendarOf(t, settings.startYear, settings.startTerm);
@@ -699,6 +704,7 @@ function balance(
     const s = graph.byCode.get(c)!;
     const cur = startByCode.get(c)!;
     if (t2 === cur || t2 < 0 || t2 >= M) return false;
+    if (t2 < (input.noAntesDe?.get(c) ?? 0)) return false;
     const cal = calendarOf(t2, settings.startYear, settings.startTerm);
     if ((s.annual || s.startsOnlyFirstSemester) && !cal.isFirstSemester) return false;
     if (s.annual && t2 + 1 >= M) return false;

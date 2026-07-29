@@ -341,6 +341,11 @@ function AutoView({
                     codes={t.subjects}
                     assigned={s.commissionByCode}
                   />
+                  <PinTermButton
+                    title={termLabel(t.term, t.year)}
+                    codes={t.subjects}
+                    assigned={s.commissionByCode}
+                  />
                 </div>
               </div>
               <TermGrid
@@ -387,6 +392,58 @@ function CopyTermButton({
       title="Copiar las materias con código de materia y comisión (para la inscripción)"
     >
       {state === 'ok' ? '✅ copiado' : state === 'err' ? '⚠️ no se pudo' : '📋 copiar'}
+    </button>
+  );
+}
+
+/**
+ * Fija un cuatri del plan automático como "mi próximo cuatrimestre".
+ * Si el plan te vino bien tal cual, no hace falta pasar por el armado manual
+ * solo para poder fijarlo.
+ */
+function PinTermButton({
+  title,
+  codes,
+  assigned,
+}: {
+  title: string;
+  codes: string[];
+  assigned: Map<string, Commission>;
+}) {
+  const setPinnedTerm = useStore((st) => st.setPinnedTerm);
+  const name = useSubjectName();
+  const [hecho, setHecho] = useState(false);
+  function fijar() {
+    const pin: PinnedTerm = {
+      label: title,
+      items: codes.map((code) => {
+        const comm = assigned.get(code);
+        const m = comm?.meetings.length
+          ? [...comm.meetings].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))[0]
+          : undefined;
+        return {
+          code,
+          commId: comm?.id,
+          day: m?.day,
+          start: m?.start,
+          end: m?.end,
+          label: comm?.label ?? name(code),
+          subjectCode: comm?.subjectCode,
+        };
+      }),
+    };
+    setPinnedTerm(pin);
+    setHecho(true);
+    setTimeout(() => setHecho(false), 1800);
+  }
+  return (
+    <button
+      onClick={fijar}
+      disabled={codes.length === 0}
+      className="rounded bg-brand-500/10 px-1.5 py-0.5 text-[10px] text-brand-700 hover:bg-brand-500/20 disabled:opacity-40 dark:text-brand-300"
+      title="Fijarlo como tu próximo cuatrimestre: queda arriba en el Tablero, con horarios y códigos a mano"
+    >
+      {hecho ? '✅ fijado' : '📌 es mi próximo'}
     </button>
   );
 }
