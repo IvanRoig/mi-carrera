@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useDerived, useSchedule, enCursoOptions } from '@/lib/useDerived';
+import { useDerived, useSchedule, enCursoOptions, scarcityDe } from '@/lib/useDerived';
 import { useStore } from '@/store/useStore';
 import { graph } from '@/domain/planGraph';
 import { ancestorsOf } from '@/domain/graph';
@@ -282,6 +282,7 @@ function AutoView({
       difficult: new Set(difficultArr),
       sicario: true,
       electivePref,
+      scarcity: scarcityDe(offer),
       ...enCursoOptions(d),
     });
   }, [sicario, autoSched, d, settings, offer, difficultArr, electivePref]);
@@ -770,6 +771,10 @@ function ManualView() {
       preScheduled,
       firstFreeTerm: keep.length,
       electivePref,
+      // Misma escasez que usa el plan automático. Sin esto, "completar desde el
+      // primer cuatri" resolvía con prioridades distintas y te devolvía un plan
+      // distinto al que estabas viendo, sin haber cambiado nada.
+      scarcity: scarcityDe(offer),
     });
     // Prefijo EXACTO del usuario + solo los cuatris nuevos del resultado.
     const newTerms = [

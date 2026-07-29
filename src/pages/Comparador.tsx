@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useDerived, enCursoOptions } from '@/lib/useDerived';
+import { useDerived, enCursoOptions, scarcityDe } from '@/lib/useDerived';
 import { useStore } from '@/store/useStore';
 import { graph } from '@/domain/planGraph';
 import { schedule } from '@/domain/scheduler';
@@ -49,6 +49,7 @@ export function Comparador() {
         difficult,
         sicario: opts.sicario,
         electivePref,
+        scarcity: scarcityDe(offer),
         ...enCursoOptions(d),
       });
       return {
