@@ -161,7 +161,26 @@ function cotaInferior(
   let critLB = 0;
   for (const c of pending) critLB = Math.max(critLB, prof(c));
 
-  // Camarilla: materias donde TODA comisión de una choca con TODA de la otra.
+  let cliqueLB = 1;
+  for (const cl of camarillas(pending, porMateria, mat)) {
+    if (cl.length > cliqueLB) cliqueLB = cl.length;
+  }
+
+  return Math.max(1, capLB, critLB, cliqueLB);
+}
+
+/**
+ * Camarillas de materias mutuamente incompatibles: grupos donde TODA comisión de
+ * una choca con TODA comisión de la otra, así que solo puede entrar UNA por
+ * cuatrimestre. Es la restricción más dura del problema (p.ej. las cinco que
+ * solo se dictan el jueves a la noche) y sirve tanto para la cota inferior como
+ * para podar la búsqueda.
+ */
+function camarillas(
+  pending: Set<string>,
+  porMateria: Map<string, Commission[]>,
+  mat: ReturnType<typeof armarMatriz>,
+): string[][] {
   const codes = [...pending].filter((c) => (porMateria.get(c)?.length ?? 0) > 0);
   const incompat = (a: string, b: string): boolean => {
     const ca = porMateria.get(a)!;
@@ -184,17 +203,130 @@ function cotaInferior(
     }
   }
   const porGrado = [...codes].sort((a, b) => vecinos.get(b)!.size - vecinos.get(a)!.size);
-  let cliqueLB = 1;
-  for (const semilla of porGrado.slice(0, 12)) {
-    if (vecinos.get(semilla)!.size + 1 <= cliqueLB) break;
+  const out: string[][] = [];
+  const vistas = new Set<string>();
+  for (const semilla of porGrado) {
+    if (vecinos.get(semilla)!.size === 0) break; // sin vecinos ya no hay camarillas
     const cl = [semilla];
     for (const c of porGrado) {
       if (c !== semilla && cl.every((x) => vecinos.get(x)!.has(c))) cl.push(c);
     }
-    if (cl.length > cliqueLB) cliqueLB = cl.length;
+    if (cl.length < 2) continue;
+    const clave = [...cl].sort().join(',');
+    if (vistas.has(clave)) continue;
+    vistas.add(clave);
+    out.push(cl);
   }
+  return out;
+}
 
-  return Math.max(1, capLB, critLB, cliqueLB);
+/**
+ * Aprieta las ventanas [est, lst] hasta que no se pueda más (punto fijo).
+ *
+ * Es el razonamiento que uno hace a mano: "hay cinco materias que solo se dictan
+ * el jueves a la noche; en seis cuatrimestres tienen que ocupar cinco jueves
+ * distintos; si empujo una al segundo cuatri, las cinco quedan encajadas en los
+ * cinco últimos y no sobra ninguno". Cada deducción de ese tipo achica las
+ * ventanas, lo que habilita la siguiente, y así hasta que se estabiliza.
+ *
+ * Tres reglas, todas exactas (jamás descartan un plan que exista):
+ *  · correlativas: una materia no arranca antes que sus previas ni tan tarde que
+ *    su cadena no llegue a terminar;
+ *  · camarillas: en un grupo de materias que se pisan entre sí entra UNA por
+ *    cuatrimestre, así que si las que ya están obligadas a caer en un tramo
+ *    llenan ese tramo, el resto del grupo queda afuera;
+ *  · capacidad: lo mismo con el tope de materias por cuatrimestre.
+ *
+ * Devuelve false si alguna ventana queda vacía: ahí quedó DEMOSTRADO que no hay
+ * plan de T cuatrimestres, sin explorar un solo nodo.
+ */
+function propagarVentanas(
+  inp: OptimalityInput,
+  T: number,
+  est: Map<string, number>,
+  lst: Map<string, number>,
+  cliques: string[][],
+  esPrimerCuatri: (t: number) => boolean,
+  pesoDe: (c: string) => number,
+  anualDe: (c: string) => boolean,
+): boolean {
+  const { graph, pending, settings } = inp;
+  const cap = Math.max(1, settings.maxPerTerm);
+  const codes = [...pending];
+
+  const subirEst = (c: string, v: number): boolean => {
+    let e = v;
+    if (anualDe(c)) while (e <= T && !esPrimerCuatri(e)) e++;
+    if (e <= est.get(c)!) return false;
+    est.set(c, e);
+    return true;
+  };
+  const bajarLst = (c: string, v: number): boolean => {
+    let l = v;
+    if (anualDe(c)) while (l >= 0 && !esPrimerCuatri(l)) l--;
+    if (l >= lst.get(c)!) return false;
+    lst.set(c, l);
+    return true;
+  };
+  const vacia = () => codes.some((c) => est.get(c)! > lst.get(c)!);
+  /** ¿La materia entra completa en el tramo [a,b]? (las anuales ocupan dos) */
+  const encerrada = (c: string, a: number, b: number) =>
+    est.get(c)! >= a && lst.get(c)! + pesoDe(c) - 1 <= b;
+
+  for (let vuelta = 0; vuelta < 20; vuelta++) {
+    let cambio = false;
+
+    for (const c of codes) {
+      for (const p of graph.prereqs.get(c) ?? []) {
+        if (!pending.has(p)) continue;
+        if (subirEst(c, est.get(p)! + pesoDe(p))) cambio = true;
+        if (bajarLst(p, lst.get(c)! - pesoDe(p))) cambio = true;
+      }
+    }
+    if (vacia()) return false;
+
+    for (const K of cliques) {
+      for (let a = 0; a < T; a++) {
+        for (let b = a; b < T; b++) {
+          const dentro = K.filter((c) => est.get(c)! >= a && lst.get(c)! <= b);
+          if (dentro.length > b - a + 1) return false;
+          if (dentro.length !== b - a + 1) continue;
+          // El tramo quedó completo: los demás del grupo van afuera.
+          for (const m of K) {
+            if (dentro.includes(m)) continue;
+            if (est.get(m)! >= a) {
+              if (subirEst(m, b + 1)) cambio = true;
+            } else if (lst.get(m)! <= b) {
+              if (bajarLst(m, a - 1)) cambio = true;
+            }
+          }
+        }
+      }
+    }
+    if (vacia()) return false;
+
+    for (let a = 0; a < T; a++) {
+      for (let b = a; b < T; b++) {
+        let peso = 0;
+        for (const c of codes) if (encerrada(c, a, b)) peso += pesoDe(c);
+        const cupo = (b - a + 1) * cap;
+        if (peso > cupo) return false;
+        if (peso !== cupo) continue;
+        for (const c of codes) {
+          if (encerrada(c, a, b)) continue;
+          if (est.get(c)! >= a) {
+            if (subirEst(c, b + 1)) cambio = true;
+          } else if (lst.get(c)! + pesoDe(c) - 1 <= b) {
+            if (bajarLst(c, a - 1)) cambio = true;
+          }
+        }
+      }
+    }
+    if (vacia()) return false;
+
+    if (!cambio) break;
+  }
+  return true;
 }
 
 /**
@@ -211,8 +343,8 @@ function buscarPlan(
   /** Materias que no pueden ir antes de cierto cuatrimestre (p.ej. si las
    * desaprobás, recién podés recursarlas al siguiente). */
   desdeCuatri?: Map<string, number>,
-  /** Tope de nodos a explorar. Sin tope, busca hasta agotar el árbol. */
-  maxNodos?: number,
+  /** Tope de tiempo en ms. Sin tope, busca hasta agotar el árbol. */
+  msTope?: number,
   /** Materias con cuatrimestre ya decidido (las que estás cursando). */
   fijoEn?: Map<string, number>,
 ): { plan: PlanExacto | null; agotado: boolean } {
@@ -221,26 +353,140 @@ function buscarPlan(
   const esPrimerCuatri = (i: number) =>
     (settings.startYear * 2 + (settings.startTerm - 1) + i) % 2 === 0;
 
-  // Más restringidas primero: poda muchísimo antes.
-  const orden = [...pending].sort(
-    (a, b) => (porMateria.get(a)!.length || 999) - (porMateria.get(b)!.length || 999),
+  const codes = [...pending];
+  const pesoDe = (c: string) => (graph.byCode.get(c)?.annual ? 2 : 1);
+  const anualDe = (c: string) => {
+    const s = graph.byCode.get(c);
+    return !!s && (s.annual || s.startsOnlyFirstSemester);
+  };
+
+  // ---- Ventana [est, lst] de cada materia -------------------------------
+  // est = lo más temprano que puede arrancar (por sus correlativas y por lo que
+  // le impongamos); lst = lo más tarde, para que la cadena que cuelga de ella
+  // todavía termine dentro de T. Si alguna ventana queda vacía, no hay plan y
+  // lo sabemos sin explorar nada.
+  const memoTail = new Map<string, number>();
+  const tail = (c: string): number => {
+    const m = memoTail.get(c);
+    if (m !== undefined) return m;
+    memoTail.set(c, pesoDe(c));
+    let best = 0;
+    for (const d of graph.dependents.get(c) ?? []) {
+      if (pending.has(d)) best = Math.max(best, tail(d));
+    }
+    const v = pesoDe(c) + best;
+    memoTail.set(c, v);
+    return v;
+  };
+  const memoEst = new Map<string, number>();
+  const estBase = (c: string): number => {
+    const m = memoEst.get(c);
+    if (m !== undefined) return m;
+    memoEst.set(c, 0);
+    let e = fijoEn?.get(c) ?? desdeCuatri?.get(c) ?? 0;
+    for (const p of graph.prereqs.get(c) ?? []) {
+      if (pending.has(p)) e = Math.max(e, estBase(p) + pesoDe(p));
+    }
+    if (anualDe(c)) while (!esPrimerCuatri(e)) e++;
+    memoEst.set(c, e);
+    return e;
+  };
+  const est0 = new Map(codes.map((c) => [c, estBase(c)]));
+  const lstDe = new Map<string, number>();
+  for (const c of codes) {
+    let l = fijoEn?.get(c) ?? T - tail(c);
+    if (anualDe(c)) while (l >= 0 && !esPrimerCuatri(l)) l--;
+    lstDe.set(c, l);
+  }
+
+  const camarillasStr = camarillas(pending, porMateria, mat);
+  // Apretar las ventanas ANTES de buscar: muchas veces alcanza para demostrar
+  // que no hay plan (respuesta instantánea), y cuando no alcanza deja la
+  // búsqueda con muchísimo menos por probar.
+  if (!propagarVentanas(inp, T, est0, lstDe, camarillasStr, esPrimerCuatri, pesoDe, anualDe)) {
+    return { plan: null, agotado: false };
+  }
+
+  // Ancestros con su distancia: al fijar una materia sabemos al toque cuánto se
+  // corre el arranque más temprano de todo lo que depende de ella.
+  const ancDe = new Map<string, [string, number][]>(codes.map((c) => [c, []]));
+  const distDesde = (a: string) => {
+    const alcanza = new Map<string, number>();
+    const ir = (x: string, d: number) => {
+      for (const y of graph.dependents.get(x) ?? []) {
+        if (!pending.has(y)) continue;
+        const nd = d + pesoDe(x);
+        if ((alcanza.get(y) ?? -1) >= nd) continue;
+        alcanza.set(y, nd);
+        ir(y, nd);
+      }
+    };
+    ir(a, 0);
+    return alcanza;
+  };
+  for (const a of codes) {
+    for (const [c, d] of distDesde(a)) ancDe.get(c)!.push([a, d]);
+  }
+
+  // Más restringidas primero: poda muchísimo antes. A igualdad de comisiones,
+  // las de ventana más chica (menos cuatrimestres donde pueden ir).
+  const holgura = (c: string) => lstDe.get(c)! - est0.get(c)!;
+  const orden = codes.sort(
+    (a, b) =>
+      (porMateria.get(a)!.length || 999) - (porMateria.get(b)!.length || 999) ||
+      holgura(a) - holgura(b),
   );
   // Las electivas son intercambiables: fijamos un orden entre ellas para no
   // recorrer las mismas soluciones permutadas (corta el árbol a la mitad varias veces).
   const electivas = orden.filter((c) => graph.byCode.get(c)?.isElective);
   const ordenElectiva = new Map(electivas.map((c, i) => [c, i]));
 
+  // ---- Todo lo que se toca en el bucle caliente, en enteros --------------
+  // Las podas corren en CADA nodo (millones): con Maps y arrays nuevos costaban
+  // más de lo que ahorraban. Acá va todo indexado por posición en `orden`, sobre
+  // buffers reservados una sola vez.
+  const n = orden.length;
+  const pos = new Map(orden.map((c, i) => [c, i]));
+  const pesoI = new Int32Array(n);
+  const anualI = new Uint8Array(n);
+  const est0I = new Int32Array(n);
+  const lstI = new Int32Array(n);
+  const ancI: Int32Array[] = [];
+  const ancD: Int32Array[] = [];
+  for (let i = 0; i < n; i++) {
+    const c = orden[i];
+    pesoI[i] = pesoDe(c);
+    anualI[i] = anualDe(c) ? 1 : 0;
+    est0I[i] = est0.get(c)!;
+    lstI[i] = lstDe.get(c)!;
+    const lista = ancDe.get(c)!;
+    ancI.push(Int32Array.from(lista.map(([a]) => pos.get(a)!)));
+    ancD.push(Int32Array.from(lista.map(([, d]) => d)));
+  }
+  const primero = new Uint8Array(T + 2);
+  for (let t = 0; t < T + 2; t++) primero[t] = esPrimerCuatri(t) ? 1 : 0;
+  // Las camarillas grandes son las que podan; las chicas casi no aportan y se
+  // pagan en cada nodo.
+  const cliqI = [...camarillasStr]
+    .sort((a, b) => b.length - a.length)
+    .slice(0, 4)
+    .map((K) => Int32Array.from(K.map((c) => pos.get(c)!)));
+  const estArr = new Int32Array(n);
+  const bufA = new Int32Array(T + 2);
+  const bufB = new Int32Array(T + 2);
+  const solT = new Int32Array(n).fill(-1);
+
   const sol = new Map<string, { t: number; comm: Commission | null }>();
   const enCuatri: number[][] = Array.from({ length: T + 2 }, () => []); // índices de comisión
-  const porCuatri = new Array(T + 2).fill(0);
+  const porCuatri = new Int32Array(T + 2);
   const diasElectivas = new Set<number>();
   let nodos = 0;
   let agotado = false;
+  const arranque = Date.now();
   // Cupos totales del plan y cuántos llevamos usados: si lo que falta ubicar no
   // entra en lo que queda libre, cortamos sin seguir explorando.
   const cupoTotal = T * cap;
   let ocupados = 0;
-  const pesoDe = (c: string) => (graph.byCode.get(c)?.annual ? 2 : 1);
   const pesoRestante: number[] = new Array(orden.length + 1).fill(0);
   for (let i = orden.length - 1; i >= 0; i--) pesoRestante[i] = pesoRestante[i + 1] + pesoDe(orden[i]);
 
@@ -249,11 +495,112 @@ function buscarPlan(
     return true;
   };
 
+  /**
+   * ¿Lo que queda por ubicar todavía puede entrar? Tres razones para cortar,
+   * todas demostrables (nunca descartan un plan que exista):
+   *
+   *  1. Ventana vacía: una materia ya no llega a arrancar a tiempo para que la
+   *     cadena de correlativas que cuelga de ella termine dentro de T.
+   *  2. Capacidad: las que están obligadas a ir en los primeros k cuatrimestres
+   *     no entran en los cupos de esos k (y lo mismo mirando desde el final).
+   *  3. Camarillas: de un grupo de materias que se pisan entre sí solo entra una
+   *     por cuatrimestre; si las obligadas a ir temprano son más que los
+   *     cuatrimestres disponibles, no hay forma.
+   *
+   * Es la diferencia entre demostrar "no se puede" en milisegundos o no
+   * terminar nunca.
+   */
+  const puedeEntrar = (desde: number): boolean => {
+    // 1) Ventanas, con lo que ya fijamos. Las materias 0..desde-1 ya tienen
+    //    cuatrimestre (en solT); las que siguen, no.
+    for (let j = desde; j < n; j++) {
+      let e = est0I[j];
+      const ai = ancI[j];
+      const ad = ancD[j];
+      for (let k = 0; k < ai.length; k++) {
+        const a = ai[k];
+        if (a < desde) {
+          const v = solT[a] + ad[k];
+          if (v > e) e = v;
+        }
+      }
+      if (anualI[j]) while (e <= T && !primero[e]) e++;
+      if (e > lstI[j]) return false;
+      estArr[j] = e;
+    }
+
+    // 2) Capacidad por prefijo y por sufijo.
+    bufA.fill(0);
+    bufB.fill(0);
+    for (let j = desde; j < n; j++) {
+      const l = lstI[j] < 0 ? 0 : lstI[j] > T ? T : lstI[j];
+      const e = estArr[j] < 0 ? 0 : estArr[j] > T ? T : estArr[j];
+      // Una anual arranca en `l` como muy tarde, pero su segundo cuatrimestre cae
+      // en l+1: cargarle los dos cupos en el prefijo [0..l] contaría de más y
+      // podría descartar un plan que sí existe.
+      bufA[l] += 1;
+      if (pesoI[j] > 1) bufA[l + 1 > T ? T : l + 1] += 1;
+      // Mirando desde el final es al revés: si arranca en `e` o después, sus dos
+      // cupos están en [e..T), así que los dos cuentan.
+      bufB[e] += pesoI[j];
+    }
+    let acc = 0;
+    let usados = 0;
+    for (let k = 0; k < T; k++) {
+      acc += bufA[k];
+      usados += porCuatri[k];
+      if (usados + acc > (k + 1) * cap) return false;
+    }
+    acc = 0;
+    usados = 0;
+    for (let k = T - 1; k >= 0; k--) {
+      acc += bufB[k];
+      usados += porCuatri[k];
+      if (usados + acc > (T - k) * cap) return false;
+    }
+
+    // 3) Camarillas: una sola por cuatrimestre.
+    for (let q = 0; q < cliqI.length; q++) {
+      const K = cliqI[q];
+      bufA.fill(0);
+      bufB.fill(0);
+      for (let x = 0; x < K.length; x++) {
+        const j = K[x];
+        let ini: number;
+        let fin: number;
+        if (j < desde) {
+          ini = fin = solT[j];
+        } else {
+          ini = estArr[j] < 0 ? 0 : estArr[j];
+          fin = lstI[j] < 0 ? 0 : lstI[j];
+        }
+        bufA[fin > T ? T : fin]++;
+        bufB[ini > T ? T : ini]++;
+      }
+      let m = 0;
+      for (let k = 0; k < T; k++) {
+        m += bufA[k];
+        if (m > k + 1) return false;
+      }
+      m = 0;
+      for (let k = T - 1; k >= 0; k--) {
+        m += bufB[k];
+        if (m > T - k) return false;
+      }
+    }
+    return true;
+  };
+
   const rec = (i: number): boolean => {
     if (i >= orden.length) return true;
-    if ((++nodos & 0x3fff) === 0) onNodo?.(nodos);
-    if (maxNodos != null && nodos > maxNodos) { agotado = true; return true; }
+    if ((++nodos & 0x3fff) === 0) {
+      onNodo?.(nodos);
+      // Un reloj cada 16k nodos: el costo por nodo cambió mucho al meter podas,
+      // así que un tope en tiempo es más predecible que uno en cantidad.
+      if (msTope != null && Date.now() - arranque > msTope) { agotado = true; return true; }
+    }
     if (pesoRestante[i] > cupoTotal - ocupados) return false; // no entran: cortamos
+    if (!puedeEntrar(i)) return false;
     const c = orden[i];
     const s = graph.byCode.get(c)!;
     const anual = s.annual || s.startsOnlyFirstSemester;
@@ -261,13 +608,16 @@ function buscarPlan(
     // Simetría entre electivas: la k-ésima no puede ir antes que la (k-1)-ésima.
     const fijo = fijoEn?.get(c);
     const ordEl = ordenElectiva.get(c);
-    let minT = desdeCuatri?.get(c) ?? 0;
+    // La ventana ya apretada manda: probar cuatrimestres fuera de [est, lst] es
+    // tiempo tirado (ahí no puede ir, está demostrado).
+    let minT = Math.max(desdeCuatri?.get(c) ?? 0, estArr[i]);
     if (ordEl !== undefined && ordEl > 0) {
       const previa = sol.get(electivas[ordEl - 1]);
       if (previa) minT = Math.max(minT, previa.t);
     }
+    const maxT = Math.min(T - 1, lstI[i]);
 
-    for (let t = minT; t < T; t++) {
+    for (let t = minT; t <= maxT; t++) {
       if (fijo != null && t !== fijo) continue; // ya sabemos cuándo va
       if (anual && (!esPrimerCuatri(t) || t + 1 >= T)) continue;
       if (porCuatri[t] >= cap) continue;
@@ -303,6 +653,7 @@ function buscarPlan(
           if (s.isElective && dia >= 0) diasElectivas.add(dia);
         }
         sol.set(c, { t, comm });
+        solT[i] = t;
         porCuatri[t]++;
         if (anual) porCuatri[t + 1]++;
         ocupados += anual ? 2 : 1;
@@ -315,6 +666,7 @@ function buscarPlan(
           if (s.isElective && dia >= 0) diasElectivas.delete(dia);
         }
         sol.delete(c);
+        solT[i] = -1;
         porCuatri[t]--;
         if (anual) porCuatri[t + 1]--;
         ocupados -= anual ? 2 : 1;
@@ -329,6 +681,96 @@ function buscarPlan(
     }
     return false;
   };
+
+  /**
+   * Intento CONSTRUCTIVO, antes de la búsqueda exhaustiva.
+   *
+   * El árbol de arriba está armado para demostrar que algo es imposible: ataca
+   * primero las materias más atadas. Eso lo hace malísimo para lo contrario —
+   * encontrar un plan cuando sobra lugar — porque pelea contra el orden de las
+   * correlativas y se va a backtrackear millones de veces.
+   *
+   * Acá hacemos lo obvio: recorrer las materias en orden de correlativas (el est
+   * ya es un orden topológico válido) y meter cada una en el primer
+   * cuatrimestre donde entre. Sale en microsegundos y, cuando sale, no hace
+   * falta tocar el árbol. Probamos unos cuantos criterios de desempate porque un
+   * first-fit sin backtracking a veces se traba por poco.
+   */
+  const intentarDirecto = (semilla: number): PlanExacto | null => {
+    const porT = new Int32Array(T + 2);
+    const enT: number[][] = Array.from({ length: T + 2 }, () => []);
+    const dias = new Set<number>();
+    const cuando = new Map<string, number>();
+    const out: PlanExacto = new Map();
+    const revuelto = (c: string) => {
+      let h = semilla * 2654435761;
+      for (let k = 0; k < c.length; k++) h = (h ^ c.charCodeAt(k)) * 16777619;
+      return h >>> 8;
+    };
+    const lista = [...orden].sort(
+      (a, b) =>
+        est0.get(a)! - est0.get(b)! ||
+        (semilla === 0
+          ? tail(b) - tail(a) // primero las que arrastran cadena más larga
+          : semilla === 1
+            ? (porMateria.get(a)!.length || 99) - (porMateria.get(b)!.length || 99)
+            : revuelto(a) - revuelto(b)),
+    );
+    for (const c of lista) {
+      const s = graph.byCode.get(c)!;
+      const anual = s.annual || s.startsOnlyFirstSemester;
+      const comms = porMateria.get(c) ?? [];
+      const fijo = fijoEn?.get(c);
+      const desdeT =
+        fijo != null ? fijo : Math.max(est0.get(c)!, desdeCuatri?.get(c) ?? 0);
+      const hastaT = fijo != null ? fijo : Math.min(T - 1, lstDe.get(c)!);
+      let puesto = false;
+      for (let t = desdeT; t <= hastaT && !puesto; t++) {
+        if (anual && (!esPrimerCuatri(t) || t + 1 >= T)) continue;
+        if (porT[t] >= cap) continue;
+        if (anual && porT[t + 1] >= cap) continue;
+        let ok = true;
+        for (const p of graph.prereqs.get(c) ?? []) {
+          if (!pending.has(p)) continue;
+          const tp = cuando.get(p);
+          // El orden es topológico, así que la previa ya está ubicada.
+          if (tp == null || tp + (graph.byCode.get(p)!.annual ? 1 : 0) >= t) {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok) continue;
+        const elegir = (comm: Commission | null): boolean => {
+          let dia = -1;
+          if (comm) {
+            const ci = mat.idx.get(comm)!;
+            for (const o of enT[t]) if (mat.choca[o * mat.n + ci]) return false;
+            if (anual) for (const o of enT[t + 1]) if (mat.choca[o * mat.n + ci]) return false;
+            const sl = slotDe(comm);
+            dia = sl ? Number(sl.split('-')[0]) : -1;
+            if (s.isElective && dia >= 0 && dias.has(dia)) return false;
+            enT[t].push(ci);
+            if (anual) enT[t + 1].push(ci);
+            if (s.isElective && dia >= 0) dias.add(dia);
+          }
+          porT[t]++;
+          if (anual) porT[t + 1]++;
+          cuando.set(c, t);
+          out.set(c, { t, slot: comm ? slotDe(comm) : null });
+          return true;
+        };
+        if (comms.length === 0) puesto = elegir(null);
+        else for (const comm of comms) if (elegir(comm)) { puesto = true; break; }
+      }
+      if (!puesto) return null;
+    }
+    return out;
+  };
+
+  for (let semilla = 0; semilla < 12; semilla++) {
+    const directo = intentarDirecto(semilla);
+    if (directo) return { plan: directo, agotado: false };
+  }
 
   const hallado = rec(0);
   if (agotado || !hallado) return { plan: null, agotado };
@@ -386,10 +828,56 @@ function cotaConDesde(inp: OptimalityInput, desde: Map<string, number>): number 
   return lb;
 }
 
-/** Cuánto te cuesta desaprobar una materia. */
-/** Tope de seguridad por consulta (muy alto): casi nunca se alcanza. Los
- * resultados se van entregando de a uno, así que no hace falta apurar. */
-const PRESUPUESTO_RIESGO = 60_000_000;
+/** Cuánto te cuesta desaprobar una materia. Tope de seguridad por pregunta: con
+ * las podas fuertes casi nunca se alcanza, y si se alcanza es mejor decir "no
+ * llegué a determinarlo" que dejar el análisis colgado para siempre. */
+const MS_POR_PREGUNTA = 15_000;
+
+/**
+ * ¿Existe un plan de T cuatrimestres si esta materia no puede arrancar antes del
+ * cuatrimestre `t`? (las demás que estás cursando quedan donde están).
+ * `null` = no se pudo determinar dentro del presupuesto de tiempo.
+ */
+function consultar(
+  inp: OptimalityInput,
+  porMateria: Map<string, Commission[]>,
+  mat: ReturnType<typeof armarMatriz>,
+  code: string,
+  t: number,
+  T: number,
+  ms: number,
+): boolean | null {
+  const desde = new Map([[code, t]]);
+  const fijas = new Map(
+    (inp.enCurso ?? [])
+      .filter((c) => c !== code && inp.pending.has(c))
+      .map((c) => [c, 0] as const),
+  );
+  // Descarte instantáneo: si ni la cota teórica entra, no hace falta buscar.
+  if (cotaConDesde(inp, desde) > T) return false;
+  const r = buscarPlan(
+    inp, T, porMateria, mat, undefined, desde, ms, fijas.size ? fijas : undefined,
+  );
+  if (r.agotado) return null;
+  return !!r.plan;
+}
+
+/** Solo para diagnóstico/bench: una consulta suelta con el presupuesto que le des. */
+export function _probarDesde(
+  inp: OptimalityInput,
+  code: string,
+  t: number,
+  T: number,
+  ms: number,
+): boolean | null {
+  if (!inp.offer) return null;
+  const offMap = offeringMap(inp.offer);
+  const disponibles = inp.settings.restrictAvailability
+    ? new Set(inp.settings.availableSlots)
+    : null;
+  const { porMateria, mat } = preparar(inp, offMap, disponibles);
+  return consultar(inp, porMateria, mat, code, t, T, ms);
+}
 
 export type Riesgo = {
   code: string;
@@ -421,38 +909,19 @@ export function analizarRiesgo(
   const { porMateria, mat } = preparar(inp, offMap, disponibles);
   const base = inp.actual;
 
-  /** ¿Existe un plan de T cuatrimestres con esta materia recién desde `t`?
-   * `null` = no se pudo determinar dentro del presupuesto. */
-  const entra = (code: string, t: number, T: number): boolean | null => {
-    const desde = new Map([[code, t]]);
-    // Las demás que estás cursando siguen donde están: solo se mueve la que
-    // estamos evaluando.
-    const fijas = new Map(
-      (inp.enCurso ?? [])
-        .filter((c) => c !== code && inp.pending.has(c))
-        .map((c) => [c, 0] as const),
-    );
-    // Descarte instantáneo: si ni la cota teórica entra, no hace falta buscar.
-    if (cotaConDesde(inp, desde) > T) return false;
-    const r = buscarPlan(
-      inp, T, porMateria, mat, undefined, desde, PRESUPUESTO_RIESGO,
-      fijas.size ? fijas : undefined,
-    );
-    if (r.agotado) return null;
-    return !!r.plan;
-  };
+  const entra = (code: string, t: number, T: number) =>
+    consultar(inp, porMateria, mat, code, t, T, MS_POR_PREGUNTA);
 
   const out: Riesgo[] = [];
   let hechas = 0;
   for (const code of delPrimerCuatri) {
     // 1) Si la desaprobás la recursás al cuatrimestre siguiente: ¿te atrasa?
     //    Arrancamos en la duración actual y subimos solo si hace falta.
-    let atraso: number | null = 0;
-    while (atraso !== null && atraso <= 2) {
-      const r = entra(code, 1, base + atraso);
-      if (r === null) { atraso = null; break; }
-      if (r) break;
-      atraso++;
+    let atraso: number | null = null;
+    for (let a = 0; a <= 3; a++) {
+      const r = entra(code, 1, base + a);
+      if (r === null) break; // sin tiempo: mejor decir que no sabemos
+      if (r) { atraso = a; break; }
     }
 
     // 2) ¿Hasta cuándo podés dejarla sin perder tiempo? La propiedad "entra
@@ -516,8 +985,18 @@ function preparar(
   disponibles: Set<string> | null,
   electivePref = inp.electivePref,
 ) {
+  // A lo que ya estás cursando no le aplica tu disponibilidad: ya te inscribiste,
+  // su horario real vale aunque no hayas marcado ese turno. Si se lo aplicáramos,
+  // podríamos declarar imposible un cuatrimestre que estás haciendo de verdad
+  // (p.ej. cinco materias de noche peleándose por cuatro días).
+  const yaInscripto = new Set(inp.enCurso ?? []);
   const porMateria = new Map<string, Commission[]>();
-  for (const c of inp.pending) porMateria.set(c, comisionesDe(c, offMap, disponibles, electivePref));
+  for (const c of inp.pending) {
+    porMateria.set(
+      c,
+      comisionesDe(c, offMap, yaInscripto.has(c) ? null : disponibles, electivePref),
+    );
+  }
   return { porMateria, mat: armarMatriz(porMateria) };
 }
 
