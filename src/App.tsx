@@ -18,6 +18,8 @@ import { AccountButton, RecoveryScreen } from '@/components/Auth';
 import { AuthGate } from '@/components/AuthGate';
 import { useAuth } from '@/store/useAuth';
 import { buscarVersionNueva } from '@/lib/pwa';
+import { diagnosticoSimulador } from '@/lib/diagnostico';
+import { copyToClipboard } from '@/lib/exportTerm';
 
 type TabId = 'tablero' | 'materias' | 'grafo' | 'simulador' | 'comparador' | 'oferta';
 
@@ -247,6 +249,22 @@ function DataMenu() {
           </button>
           <button className={item} onClick={() => { window.print(); setOpen(false); }}>
             🖨️ Imprimir / PDF
+          </button>
+          <button
+            className={item}
+            title="Corre el cálculo del simulador varias veces con tus datos y copia un informe. Sirve para reportar que el plan te cambia solo."
+            onClick={async () => {
+              const ok = await copyToClipboard(diagnosticoSimulador());
+              alert(
+                ok
+                  ? 'Diagnóstico copiado. Pegalo en el reporte del problema.'
+                  : 'No se pudo copiar. Abrí la consola: el informe está ahí.',
+              );
+              if (!ok) console.log(diagnosticoSimulador());
+              setOpen(false);
+            }}
+          >
+            🐞 Copiar diagnóstico
           </button>
           <div className="my-1 border-t border-slate-200 dark:border-slate-800" />
           <button
