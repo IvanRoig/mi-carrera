@@ -11,6 +11,7 @@ import { Badge } from '@/components/Badge';
 import { formatGraduation, termLabel, trackColor } from '@/lib/ui';
 import { validateManualPlan, SUMMER_MAX, type SubjectDiag, type TermDiag } from '@/domain/manual';
 import { schedule, calendarOf, type ScheduleResult } from '@/domain/scheduler';
+import { completarDesde } from '@/domain/autocompletar';
 import { termToClipboardText, copyToClipboard, type TermItem } from '@/lib/exportTerm';
 import type { WorkerMsg, WorkerReq } from '@/workers/optimality.worker';
 import type { PinnedTerm } from '@/store/useStore';
@@ -753,36 +754,24 @@ function ManualView() {
     );
   }
 
-  // Deja fijos los cuatris 0..keepUpTo (incluido) TAL CUAL están (materias y días)
-  // y autocompleta SOLO los siguientes.
+  // Deja fijos los cuatris 0..keepUpTo (incluido) TAL CUAL están —veranos
+  // incluidos— y autocompleta SOLO los siguientes. La lógica vive en
+  // domain/autocompletar.ts para poder testearla.
   function autocompleteFrom(keepUpTo: number) {
-    const keep = manualTerms.slice(0, keepUpTo + 1);
-    const preScheduled = new Map<string, number>();
-    keep.forEach((t, i) => t.subjects.forEach((c) => preScheduled.set(c, i)));
-    const prefixCodes = new Set([...preScheduled.keys()]);
-    const remaining = new Set([...d.pending].filter((c) => !prefixCodes.has(c)));
-    const res = schedule({
+    const { terms, res, prefixCodes } = completarDesde(manualTerms, keepUpTo, {
       graph,
-      pending: remaining,
+      pending: d.pending,
       done: d.done,
       settings,
       offer,
       difficult: new Set(difficultArr),
-      preScheduled,
-      firstFreeTerm: keep.length,
       electivePref,
       // Misma escasez que usa el plan automático. Sin esto, "completar desde el
       // primer cuatri" resolvía con prioridades distintas y te devolvía un plan
       // distinto al que estabas viendo, sin haber cambiado nada.
       scarcity: scarcityDe(offer),
     });
-    // Prefijo EXACTO del usuario + solo los cuatris nuevos del resultado.
-    const newTerms = [
-      ...keep.map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })),
-      ...res.terms
-        .slice(keep.length)
-        .map((t) => ({ id: crypto.randomUUID(), subjects: [...t.subjects] })),
-    ];
+    const newTerms = terms.map((t) => ({ id: crypto.randomUUID(), ...t }));
     // Días fijados: conservar los del prefijo, agregar los de la parte nueva.
     const fd: Record<string, number> = {};
     const ft: Record<string, 'm' | 't' | 'n'> = {};
