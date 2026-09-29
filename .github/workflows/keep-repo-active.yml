@@ -1,0 +1,26 @@
+name: Mantener el repo activo
+
+# GitHub apaga los workflows programados (como el ping a Supabase) si el repo
+# pasa 60 días sin actividad. Un commit vacío por mes lo evita.
+# "[skip ci]" en el mensaje hace que no se dispare el deploy a Pages.
+on:
+  schedule:
+    - cron: '0 12 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Commit vacío
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "Mantener el repo activo [skip ci]"
+          git push
