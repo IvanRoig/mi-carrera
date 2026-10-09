@@ -1,11 +1,20 @@
 name: Mantener Supabase despierto
 
-# Supabase pausa los proyectos free tras 7 días sin actividad. Esto le pega a
-# la base cada 3 días para que nunca llegue a pausarse. Usa los mismos Secrets
-# que el deploy.
+# Supabase pausa un proyecto free si en una semana no recibe "unas pocas
+# consultas a la base por día". Un ping cada 3 días no alcanzaba (se pausó
+# igual), así que ahora consulta cada 2 horas. Usa los mismos Secrets que el
+# deploy.
+#
+# Red de seguridad opcional: si existe el secret SUPABASE_ACCESS_TOKEN (token
+# de supabase.com/dashboard/account/tokens con "Project Settings" de lectura y
+# escritura y "Database" de lectura), además se fija si el proyecto quedó
+# pausado y lo reactiva solo.
 on:
   schedule:
-    - cron: '17 12 */3 * *'
+    - cron: '17 */2 * * *'
+    # Chequeo diario: si algo anda mal, este run falla y GitHub te avisa por
+    # mail. Los de cada 2 horas solo dejan un warning, así no te llueven mails.
+    - cron: '47 12 * * *'
   workflow_dispatch:
 
 permissions:
@@ -14,15 +23,89 @@ permissions:
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Consultar la base
+      - name: Consultar la base (y reactivarla si estaba pausada)
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          ESTRICTO: ${{ github.event_name != 'schedule' || github.event.schedule == '47 12 * * *' }}
         run: |
-          # Un SELECT real (no solo el health check) para que cuente como
-          # actividad de la base. Por RLS, con la anon key vuelve vacío: da igual.
-          curl --fail-with-body -sS \
-            "$SUPABASE_URL/rest/v1/planner_states?select=user_id&limit=1" \
-            -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY"
+          ref="${SUPABASE_URL#https://}"
+          ref="${ref%%.*}"
+          api="https://api.supabase.com/v1/projects/$ref"
+          problemas=0
+          avisar() { echo "::warning::$1"; problemas=$((problemas + 1)); }
+
+          estado_del_proyecto() {
+            local info
+            info=$(curl -sS --fail-with-body --retry 3 --max-time 30 \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "$api") || { echo "$info" >&2; return 1; }
+            grep -o '"status" *: *"[A-Z_]*"' <<<"$info" | head -1 | grep -o '[A-Z_]*"$' | tr -d '"'
+          }
+
+          # Si Supabase lo pausó igual, lo reactiva y espera a que levante.
+          despertar() {
+            local estado="" reactivado=no
+            for _ in $(seq 1 30); do
+              estado=$(estado_del_proyecto) || {
+                avisar "No pude ver el estado del proyecto con SUPABASE_ACCESS_TOKEN (¿venció o lo borraste?)."
+                return
+              }
+              echo "Estado del proyecto: ${estado:-?}"
+              [[ "$estado" == ACTIVE_HEALTHY ]] && return
+              if [[ "$estado" == INACTIVE && "$reactivado" == no ]]; then
+                echo "::notice::Supabase pausó el proyecto igual; lo reactivo."
+                curl -sS --fail-with-body --max-time 60 -X POST \
+                  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "$api/restore" || {
+                  avisar "No pude reactivar el proyecto."
+                  return
+                }
+                reactivado=si
+              fi
+              sleep 30
+            done
+            avisar "El proyecto sigue en estado ${estado:-?} después de 15 minutos."
+          }
+
+          if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then
+            avisar "Faltan los secrets VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY."
+          else
+            [[ -n "$SUPABASE_ACCESS_TOKEN" ]] && despertar
+
+            # Consultas reales a la base, como las de la app. Por RLS, con la
+            # anon key vuelven vacías: da igual, la consulta corre igual.
+            for i in 1 2 3; do
+              if out=$(curl -sS --fail-with-body --retry 3 --retry-all-errors --retry-delay 10 --max-time 30 \
+                  "$SUPABASE_URL/rest/v1/planner_states?select=user_id&limit=1" \
+                  -H "apikey: $SUPABASE_ANON_KEY" \
+                  -H "Authorization: Bearer $SUPABASE_ANON_KEY"); then
+                echo "Consulta $i: OK"
+              else
+                avisar "La consulta $i a la base falló: $out"
+              fi
+            done
+
+            # Con el token, además una consulta SQL por la API de Supabase (el
+            # mismo camino que usa el dashboard). No se imprime el resultado:
+            # los logs de un repo público los ve cualquiera.
+            if [[ -n "$SUPABASE_ACCESS_TOKEN" ]]; then
+              if out=$(curl -sS --fail-with-body --retry 3 --max-time 60 -X POST \
+                  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+                  -d '{"query":"select count(*) from public.planner_states"}' \
+                  "$api/database/query/read-only"); then
+                echo "Consulta SQL: OK"
+              else
+                avisar "La consulta SQL por la API de Supabase falló: $out"
+              fi
+            fi
+          fi
+
+          if (( problemas > 0 )); then
+            if [[ "$ESTRICTO" == true ]]; then
+              echo "::error::Algo anda mal con el keep-alive de Supabase (ver los warnings)."
+              exit 1
+            fi
+            echo "Hubo $problemas problema(s). Si sigue así, el chequeo diario (12:47 UTC) va a fallar y te llega un mail."
+          fi
